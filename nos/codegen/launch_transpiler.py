@@ -63,7 +63,7 @@ class LaunchTranspiler(CodeGenerator):
             "from launch import LaunchDescription",
             "from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription",
             "from launch.conditions import IfCondition, UnlessCondition",
-            "from launch.substitutions import LaunchConfiguration, TextSubstitution",
+            "from launch.substitutions import LaunchConfiguration, TextSubstitution, PathJoinSubstitution, Command",
             "from launch.launch_description_sources import PythonLaunchDescriptionSource",
             "from launch_ros.actions import Node, ComposableNodeContainer",
             "from launch_ros.descriptions import ComposableNode",
@@ -274,6 +274,14 @@ class LaunchTranspiler(CodeGenerator):
             left = self._expression_to_python(expr.left)
             right = self._expression_to_python(expr.right)
             return f"({left} {expr.operator} {right})"
+
+        elif isinstance(expr, nodes.CallExpression):
+            callee = self._expression_to_python(expr.callee)
+            args = [self._expression_to_python(arg) for arg in expr.arguments]
+            return f"{callee}({', '.join(args)})"
+
+        elif isinstance(expr, nodes.InterpolatedExpression):
+            return self._expression_to_python(expr.inner)
 
         return str(expr)
 

@@ -243,3 +243,21 @@ class TestRoundTrip:
         code = output.files["round_trip_node_node.py"]
         assert "input" in code
         assert "create_subscription" in code
+
+    def test_pipeline_fails_on_syntax_error(self):
+        """Test that compile_string fails on syntax errors in embedded Python."""
+        pipeline = CompilerPipeline()
+        source = """package test_pkg
+version "0.1.0"
+
+node SyntaxErrorNode {
+    on_init -> {
+        if True
+            print("Missing colon")
+    }
+}
+"""
+        result = pipeline.compile_string(source, "test.nos")
+        assert result.success is False
+        assert len(result.errors) > 0
+        assert any("Syntax error" in err or "invalid syntax" in err for err in result.errors)

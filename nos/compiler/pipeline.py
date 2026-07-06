@@ -154,6 +154,11 @@ class CompilerPipeline:
             generated = self._generate(ast, analysis.symbol_table)
             result.files = generated.files
 
+            if hasattr(generated, 'security_errors') and generated.security_errors:
+                result.errors.extend(generated.security_errors)
+                result.success = False
+                return result
+
             result.success = True
             return result
 
@@ -196,6 +201,11 @@ class CompilerPipeline:
             # Generate
             generated = self._generate(ast, analysis.symbol_table)
             result.files = generated.files
+
+            if hasattr(generated, 'security_errors') and generated.security_errors:
+                result.errors.extend(generated.security_errors)
+                result.success = False
+                return result
 
             result.success = True
             return result
@@ -289,6 +299,9 @@ class CompilerPipeline:
             node_gen = PythonGenerator(self.options)
             node_output = node_gen.generate(ast, symbol_table)
             output.files.update(node_output.files)
+            
+            if hasattr(node_output, 'security_errors') and node_output.security_errors:
+                output.security_errors = node_output.security_errors
 
             # Generate launch files
             launch_gen = LaunchTranspiler(self.options)

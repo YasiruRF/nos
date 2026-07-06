@@ -83,6 +83,12 @@ class PythonGenerator(CodeGenerator):
         file_name = f"{self._camel_to_snake(class_name)}_node.py"
         self.output.add_file(file_name, content)
 
+    def _is_client(self, decl) -> bool:
+        return any(c.name == 'client' for c in decl.constraints)
+
+    def _is_reentrant(self, decl) -> bool:
+        return any(c.name == 'reentrant' for c in decl.constraints)
+
     def _generate_node_imports(self, node: nodes.NodeDecl) -> str:
         """Generate import statements for a node."""
         imports = [
@@ -92,6 +98,15 @@ class PythonGenerator(CodeGenerator):
             "from rcl_interfaces.msg import ParameterDescriptor, FloatingPointRange, IntegerRange",
             "from nos.runtime import NOSNode, NOSLifecycleNode, create_qos_profile",
         ]
+
+        has_reentrant = (
+            any(self._is_reentrant(sub) for sub in node.subscriptions) or
+            any(self._is_reentrant(pub) for pub in node.publications) or
+            any(self._is_reentrant(svc) for svc in node.services) or
+            any(self._is_reentrant(act) for act in node.actions)
+        )
+        if has_reentrant:
+            imports.append("from rclpy.callback_groups import ReentrantCallbackGroup")
 
         # Add message type imports
         message_packages = set()
@@ -104,6 +119,32 @@ class PythonGenerator(CodeGenerator):
 
         for pkg in sorted(message_packages):
             imports.append(f"from {pkg}.msg import *")
+
+        # Add service type imports
+        service_packages = set()
+        for svc in node.services:
+            if svc.service_type.package:
+                service_packages.add(svc.service_type.package)
+
+        for pkg in sorted(service_packages):
+            imports.append(f"from {pkg}.srv import *")
+
+        # Add action type imports
+        action_packages = set()
+        for act in node.actions:
+            if act.action_type.package:
+                action_packages.add(act.action_type.package)
+
+        for pkg in sorted(action_packages):
+            imports.append(f"from {pkg}.action import *")
+
+        has_action_client = any(self._is_client(act) for act in node.actions)
+        has_action_server = any(not self._is_client(act) for act in node.actions)
+
+        if has_action_client:
+            imports.append("from rclpy.action import ActionClient")
+        if has_action_server:
+            imports.append("from rclpy.action import ActionServer, GoalResponse, CancelResponse")
 
         return "\n".join(imports)
 
@@ -255,9 +296,18 @@ class PythonGenerator(CodeGenerator):
         """Generate communication setup method."""
         lines = ["    def _setup_communications(self):"]
 
-        if not (node.subscriptions or node.publications or node.services):
+        if not (node.subscriptions or node.publications or node.services or node.actions):
             lines.append("        pass")
             return "\n".join(lines)
+
+        has_reentrant = (
+            any(self._is_reentrant(sub) for sub in node.subscriptions) or
+            any(self._is_reentrant(pub) for pub in node.publications) or
+            any(self._is_reentrant(svc) for svc in node.services) or
+            any(self._is_reentrant(act) for act in node.actions)
+        )
+        if has_reentrant:
+            lines.append("        self._reentrant_group = ReentrantCallbackGroup()")
 
         # Generate subscriptions
         for sub in node.subscriptions:
@@ -265,10 +315,14 @@ class PythonGenerator(CodeGenerator):
             topic_expr = self._expression_to_python(sub.topic)
             callback_name = f"_on_{sub.name}_received"
             qos = self._generate_qos_config(sub.qos)
+            
+            cb_group = ""
+            if self._is_reentrant(sub):
+                cb_group = ", callback_group=self._reentrant_group"
 
             lines.extend([
                 f"        self._{sub.name}_sub = self.create_subscription(",
-                f"            {msg_type}, {topic_expr}, self.{callback_name}, {qos}",
+                f"            {msg_type}, {topic_expr}, self.{callback_name}, {qos}{cb_group}",
                 f"        )"
             ])
 
@@ -279,26 +333,79 @@ class PythonGenerator(CodeGenerator):
             msg_type = pub.message_type.name
             topic_expr = self._expression_to_python(pub.topic)
             qos = self._generate_qos_config(pub.qos)
+            
+            cb_group = ""
+            if self._is_reentrant(pub):
+                cb_group = ", callback_group=self._reentrant_group"
 
             lines.extend([
                 f"        self.{pub.name} = self.create_publisher(",
-                f"            {msg_type}, {topic_expr}, {qos}",
+                f"            {msg_type}, {topic_expr}, {qos}{cb_group}",
                 f"        )"
             ])
 
         lines.append("")
 
-        # Generate services
+        # Generate services (servers & clients)
         for svc in node.services:
             svc_type = svc.service_type.name
             svc_name = self._expression_to_python(svc.service_name)
-            callback_name = f"_{svc.name}_callback"
+            
+            cb_group = ""
+            if self._is_reentrant(svc):
+                cb_group = ", callback_group=self._reentrant_group"
 
-            lines.extend([
-                f"        self._{svc.name}_srv = self.create_service(",
-                f"            {svc_type}, {svc_name}, self.{callback_name}",
-                f"        )"
-            ])
+            if self._is_client(svc):
+                lines.extend([
+                    f"        self.{svc.name} = self.create_client(",
+                    f"            {svc_type}, {svc_name}{cb_group}",
+                    f"        )"
+                ])
+            else:
+                callback_name = f"_{svc.name}_callback"
+                lines.extend([
+                    f"        self._{svc.name}_srv = self.create_service(",
+                    f"            {svc_type}, {svc_name}, self.{callback_name}{cb_group}",
+                    f"        )"
+                ])
+
+        lines.append("")
+
+        # Generate actions (servers & clients)
+        for act in node.actions:
+            action_type = act.action_type.name
+            action_name = f"'{act.name}'"
+            
+            cb_group = ""
+            if self._is_reentrant(act):
+                cb_group = ", callback_group=self._reentrant_group"
+
+            if self._is_client(act):
+                lines.extend([
+                    f"        self.{act.name} = ActionClient(",
+                    f"            self, {action_type}, {action_name}{cb_group}",
+                    f"        )"
+                ])
+            else:
+                user_implemented_events = {cb.event for cb in node.callbacks}
+                
+                goal_cb = ""
+                if f"on_{act.name}_goal" in user_implemented_events or f"{act.name}_goal" in user_implemented_events:
+                    goal_name = f"on_{act.name}_goal" if f"on_{act.name}_goal" in user_implemented_events else f"{act.name}_goal"
+                    goal_cb = f", goal_callback=self.{goal_name}"
+
+                cancel_cb = ""
+                if f"on_{act.name}_cancel" in user_implemented_events or f"{act.name}_cancel" in user_implemented_events:
+                    cancel_name = f"on_{act.name}_cancel" if f"on_{act.name}_cancel" in user_implemented_events else f"{act.name}_cancel"
+                    cancel_cb = f", cancel_callback=self.{cancel_name}"
+
+                callback_name = f"_on_{act.name}_execute"
+                lines.extend([
+                    f"        self._{act.name}_action_server = ActionServer(",
+                    f"            self, {action_type}, {action_name},",
+                    f"            execute_callback=self.{callback_name}{goal_cb}{cancel_cb}{cb_group}",
+                    f"        )"
+                ])
 
         return "\n".join(lines)
 
@@ -356,6 +463,8 @@ class PythonGenerator(CodeGenerator):
 
         # Generate service callbacks
         for svc in node.services:
+            if self._is_client(svc):
+                continue
             svc_type = svc.service_type.name
             callback_name = f"{svc.name}_callback"
             user_callback_name = f"{svc.name}_request"
@@ -382,6 +491,38 @@ class PythonGenerator(CodeGenerator):
         """Default implementation for {svc.name} requests."""
         response.success = True
         return response
+'''
+                callbacks.append(default_impl)
+
+        # Generate action callbacks
+        for act in node.actions:
+            if self._is_client(act):
+                continue
+            action_type = act.action_type.name
+            callback_name = f"{act.name}_execute"
+            user_callback = callback_name
+            if f"on_{callback_name}" in user_implemented_events:
+                user_callback = f"on_{callback_name}"
+            
+            # Wrapper
+            wrapper = f'''    def _on_{act.name}_execute(self, goal_handle):
+        """Wrapper for {act.name} action execute callback."""
+        try:
+            return self.{user_callback}(goal_handle)
+        except Exception as e:
+            self.get_logger().error(f"Error in {act.name} action execute callback: {{e}}")
+            goal_handle.abort()
+            return {action_type}.Result()
+'''
+            callbacks.append(wrapper)
+            
+            # Default implementation if not provided by user
+            if callback_name not in user_implemented_events and f"on_{callback_name}" not in user_implemented_events:
+                default_impl = f'''
+    def {callback_name}(self, goal_handle):
+        """Default implementation for {act.name} action execution."""
+        goal_handle.succeed()
+        return {action_type}.Result()
 '''
                 callbacks.append(default_impl)
 

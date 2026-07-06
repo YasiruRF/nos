@@ -5,7 +5,7 @@ from nos.ast.nodes import (
     SourceLocation, NodeDecl, ParameterDecl, PrimitiveType, PrimitiveTypeKind,
     LiteralExpression, QualifiedType, SubscriptionDecl, PublicationDecl,
     LaunchDecl, GroupDecl, NodeInstance, ContainerDecl, ComponentInstance,
-    IdentifierExpression, BinaryExpression
+    IdentifierExpression, BinaryExpression, ActionDecl
 )
 from nos.semantic import SymbolTable, SemanticAnalyzer
 from nos.codegen import PythonGenerator, LaunchTranspiler, GenerationOutput
@@ -207,6 +207,76 @@ class TestLaunchTranspiler:
         assert "ComposableNodeContainer" in code
         assert "ComposableNode" in code
 
+    def test_generate_launch_with_substitutions(self):
+        """Test generating launch description with call expressions and interpolated configurations."""
+        from nos.ast.nodes import CallExpression, InterpolatedExpression, LiteralExpression, IdentifierExpression, ArgumentDecl, PrimitiveType, PrimitiveTypeKind
+        loc = SourceLocation(1, 0, "test.nos")
+        
+        find_pkg = CallExpression(
+            location=loc,
+            callee=IdentifierExpression(location=loc, name="FindPackageShare"),
+            arguments=[LiteralExpression(location=loc, value="lecture4", literal_type="string")]
+        )
+        
+        path_join = CallExpression(
+            location=loc,
+            callee=IdentifierExpression(location=loc, name="PathJoinSubstitution"),
+            arguments=[
+                find_pkg,
+                LiteralExpression(location=loc, value="urdf", literal_type="string"),
+                InterpolatedExpression(location=loc, inner=IdentifierExpression(location=loc, name="filename"))
+            ]
+        )
+        
+        command_call = CallExpression(
+            location=loc,
+            callee=IdentifierExpression(location=loc, name="Command"),
+            arguments=[
+                LiteralExpression(location=loc, value="xacro", literal_type="string"),
+                path_join
+            ]
+        )
+        
+        node_instance = NodeInstance(
+            location=loc,
+            name="robot_state_publisher",
+            node_type="RobotStatePublisher",
+            parameters={
+                "robot_description": command_call
+            },
+            condition=None
+        )
+        
+        group = GroupDecl(
+            location=loc,
+            name="default_group",
+            namespace=LiteralExpression(location=loc, value="", literal_type="string"),
+            nodes=[node_instance]
+        )
+        
+        launch = LaunchDecl(
+            location=loc,
+            name="SubLaunch",
+            arguments=[
+                ArgumentDecl(location=loc, name="filename", type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.STRING), default_value=LiteralExpression(location=loc, value="robot", literal_type="string"))
+            ],
+            groups=[group],
+            containers=[],
+            includes=[],
+            lifecycle_manager=None,
+            events=[]
+        )
+        
+        trans = LaunchTranspiler()
+        st = SymbolTable()
+        output = trans.generate(launch, st)
+        
+        code = output.files["sub_launch_launch.py"]
+        assert "from launch.substitutions import LaunchConfiguration, TextSubstitution, PathJoinSubstitution, Command" in code
+        assert "from launch_ros.substitutions import FindPackageShare" in code
+        assert "filename = LaunchConfiguration('filename')" in code
+        assert "Command(\"xacro\", PathJoinSubstitution(FindPackageShare(\"lecture4\"), \"urdf\", filename))" in code
+
 
 class TestGenerationOutput:
     """Tests for GenerationOutput class."""
@@ -302,3 +372,142 @@ class TestCodeGenerationEdgeCases:
         # Should still have valid Python structure
         assert "class" in code
         assert "def __init__" in code
+
+    def test_action_server_generation(self):
+        """Test code generation for nodes containing Action Servers."""
+        loc = SourceLocation(1, 0, "test.nos")
+        node = NodeDecl(
+            location=loc,
+            name="ActionNode",
+            parameters=[],
+            subscriptions=[],
+            publications=[],
+            services=[],
+            actions=[
+                ActionDecl(
+                    location=loc,
+                    name="navigate",
+                    action_type=QualifiedType(location=loc, package="nav2_msgs", name="NavigateToPose"),
+                    constraints=[]
+                )
+            ],
+            lifecycle=None,
+            components=[],
+            callbacks=[]
+        )
+
+        gen = PythonGenerator()
+        st = SymbolTable()
+        output = gen.generate(node, st)
+
+        code = output.files["action_node_node.py"]
+        assert "from rclpy.action import ActionServer" in code
+        assert "from nav2_msgs.action import *" in code
+        assert "ActionServer(" in code
+        assert "def _on_navigate_execute(self, goal_handle)" in code
+        assert "def navigate_execute(self, goal_handle)" in code
+
+    def test_clients_and_reentrant_generation(self):
+        """Test code generation for service/action clients and reentrant callback groups."""
+        from nos.ast.nodes import Constraint, ServiceDecl
+        loc = SourceLocation(1, 0, "test.nos")
+        node = NodeDecl(
+            location=loc,
+            name="ClientNode",
+            parameters=[],
+            subscriptions=[
+                SubscriptionDecl(
+                    location=loc,
+                    name="input",
+                    message_type=QualifiedType(location=loc, package="std_msgs", name="String"),
+                    topic=LiteralExpression(location=loc, value="/input", literal_type="string"),
+                    qos=None,
+                    constraints=[Constraint(location=loc, name="reentrant", arguments=[])]
+                )
+            ],
+            publications=[],
+            services=[
+                ServiceDecl(
+                    location=loc,
+                    name="calc_client",
+                    service_type=QualifiedType(location=loc, package="example_interfaces", name="AddTwoInts"),
+                    service_name=LiteralExpression(location=loc, value="/add", literal_type="string"),
+                    constraints=[
+                        Constraint(location=loc, name="client", arguments=[]),
+                        Constraint(location=loc, name="reentrant", arguments=[])
+                    ]
+                )
+            ],
+            actions=[
+                ActionDecl(
+                    location=loc,
+                    name="nav_client",
+                    action_type=QualifiedType(location=loc, package="nav2_msgs", name="NavigateToPose"),
+                    constraints=[
+                        Constraint(location=loc, name="client", arguments=[]),
+                        Constraint(location=loc, name="reentrant", arguments=[])
+                    ]
+                )
+            ],
+            lifecycle=None,
+            components=[],
+            callbacks=[]
+        )
+
+        gen = PythonGenerator()
+        st = SymbolTable()
+        output = gen.generate(node, st)
+
+        code = output.files["client_node_node.py"]
+        assert "from rclpy.callback_groups import ReentrantCallbackGroup" in code
+        assert "from rclpy.action import ActionClient" in code
+        assert "from example_interfaces.srv import *" in code
+        assert "from nav2_msgs.action import *" in code
+        
+        # Check reentrant group creation and usage
+        assert "self._reentrant_group = ReentrantCallbackGroup()" in code
+        assert "callback_group=self._reentrant_group" in code
+        
+        # Check client creation
+        assert "self.calc_client = self.create_client(" in code
+        assert "self.nav_client = ActionClient(" in code
+        
+        # Ensure no execute/request wrappers are generated for clients
+        assert "def _on_nav_client_execute" not in code
+        assert "def _calc_client_callback" not in code
+
+    def test_action_server_with_validation_generation(self):
+        """Test Action Server generation with user-defined goal and cancel callbacks."""
+        from nos.ast.nodes import CallbackDecl
+        loc = SourceLocation(1, 0, "test.nos")
+        node = NodeDecl(
+            location=loc,
+            name="ValNode",
+            parameters=[],
+            subscriptions=[],
+            publications=[],
+            services=[],
+            actions=[
+                ActionDecl(
+                    location=loc,
+                    name="navigate",
+                    action_type=QualifiedType(location=loc, package="nav2_msgs", name="NavigateToPose"),
+                    constraints=[]
+                )
+            ],
+            lifecycle=None,
+            components=[],
+            callbacks=[
+                CallbackDecl(location=loc, event="on_navigate_goal", parameters=[], body="pass"),
+                CallbackDecl(location=loc, event="on_navigate_cancel", parameters=[], body="pass")
+            ]
+        )
+
+        gen = PythonGenerator()
+        st = SymbolTable()
+        output = gen.generate(node, st)
+
+        code = output.files["val_node_node.py"]
+        assert "from rclpy.action import ActionServer, GoalResponse, CancelResponse" in code
+        assert "goal_callback=self.on_navigate_goal" in code
+        assert "cancel_callback=self.on_navigate_cancel" in code
