@@ -1,4 +1,4 @@
-﻿"""AST (Abstract Syntax Tree) module for NOS.
+"""AST (Abstract Syntax Tree) module for NOS.
 
 Contains all AST node definitions and the builder that converts
 ANTLR4 parse trees to AST nodes.

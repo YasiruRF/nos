@@ -1,4 +1,4 @@
-﻿"""Integration tests for the NOS compiler pipeline."""
+"""Integration tests for the NOS compiler pipeline."""
 
 import pytest
 from nos.ast.nodes import (

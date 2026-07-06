@@ -1,4 +1,4 @@
-﻿"""Unit tests for code generation and launch transpilation."""
+"""Unit tests for code generation and launch transpilation."""
 
 import pytest
 from nos.ast.nodes import (

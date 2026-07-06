@@ -1,4 +1,4 @@
-﻿"""Main semantic analyzer for NOS.
+"""Main semantic analyzer for NOS.
 
 Orchestrates semantic analysis passes including:
 - Symbol table construction

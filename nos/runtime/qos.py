@@ -1,4 +1,4 @@
-﻿"""QoS profile utilities for NOS runtime.
+"""QoS profile utilities for NOS runtime.
 
 Provides convenient creation of common QoS profiles.
 """

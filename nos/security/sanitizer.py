@@ -1,4 +1,4 @@
-﻿"""Security sanitizer for embedded Python code in NOS.
+"""Security sanitizer for embedded Python code in NOS.
 
 This module provides comprehensive security validation to prevent code injection
 attacks through embedded Python code blocks in NOS callbacks.
@@ -295,8 +295,8 @@ class PythonCodeSanitizer:
         self._check_dangerous_builtins(code)
         self._check_imports(tree)
         self._check_dangerous_attributes(tree)
-        self._check_file_operations(code)
-        self._check_network_operations(code)
+        self._check_file_operations(tree)
+        self._check_network_operations(tree)
         self._check_obfuscation(code)
         self._check_bytecode_manipulation(code)
 
@@ -481,17 +481,16 @@ class PythonCodeSanitizer:
                             SecurityViolation(error_msg, SecuritySeverity.CRITICAL, line)
                         )
 
-    def _check_file_operations(self, code: str) -> None:
+    def _check_file_operations(self, tree: ast.AST) -> None:
         """Check for file operation patterns."""
         if not self.strict_mode:
             return
 
-        for op in self.FILE_OPERATIONS:
-            pattern = rf'\.{op}\s*\('
-            for match in re.finditer(pattern, code):
-                line = code[:match.start()].count('\n') + 1
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr in self.FILE_OPERATIONS:
+                line = getattr(node, 'lineno', None)
                 warning_msg = (
-                    f"Security Warning: File operation '{op}' detected at line {line}. "
+                    f"Security Warning: File operation '{node.attr}' detected at line {line}. "
                     f"Ensure this is intended and safe."
                 )
                 self.warnings.append(warning_msg)
@@ -499,17 +498,16 @@ class PythonCodeSanitizer:
                     SecurityViolation(warning_msg, SecuritySeverity.MEDIUM, line)
                 )
 
-    def _check_network_operations(self, code: str) -> None:
+    def _check_network_operations(self, tree: ast.AST) -> None:
         """Check for network operation patterns."""
         if not self.strict_mode:
             return
 
-        for op in self.NETWORK_OPERATIONS:
-            pattern = rf'\.{op}\s*\('
-            for match in re.finditer(pattern, code):
-                line = code[:match.start()].count('\n') + 1
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr in self.NETWORK_OPERATIONS:
+                line = getattr(node, 'lineno', None)
                 warning_msg = (
-                    f"Security Warning: Network operation '{op}' detected at line {line}. "
+                    f"Security Warning: Network operation '{node.attr}' detected at line {line}. "
                     f"Ensure this is intended and safe."
                 )
                 self.warnings.append(warning_msg)

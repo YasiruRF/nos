@@ -1,4 +1,4 @@
-﻿"""Security tests for NOS embedded Python code handling.
+"""Security tests for NOS embedded Python code handling.
 
 Tests validate that the security sanitizer correctly:
 1. Blocks dangerous builtins (eval, exec, __import__, etc.)

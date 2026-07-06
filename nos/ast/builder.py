@@ -1,4 +1,4 @@
-﻿"""AST Builder - converts ANTLR4 parse trees to AST nodes.
+"""AST Builder - converts ANTLR4 parse trees to AST nodes.
 
 This module provides the bridge between the ANTLR4 parser output
 and the strongly-typed AST node hierarchy.

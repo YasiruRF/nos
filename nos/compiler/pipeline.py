@@ -1,4 +1,4 @@
-﻿"""End-to-end compilation pipeline for NOS.
+"""End-to-end compilation pipeline for NOS.
 
 Orchestrates the complete compilation process from source file
 to generated code.
@@ -450,17 +450,19 @@ class CompilerPipeline:
         entry_points = []
         for path in sorted(files.keys()):
             if path.endswith('.py') and not path.endswith('.launch.py'):
-                module = Path(path).stem
+                module = Path(path).name
+                if module.endswith('.py'):
+                    module = module[:-3]
                 entry_points.append(f"            '{module} = {package_name}.{module}:main',")
 
         entry_points_block = "\n".join(entry_points) if entry_points else ""
 
-        package_xml = f"""<?xml version=\"1.0\"?>
-<package format=\"3\">
+        package_xml = f"""<?xml version="1.0"?>
+<package format="3">
   <name>{package_name}</name>
   <version>0.0.1</version>
   <description>Auto-generated from NOS</description>
-  <maintainer email=\"nos@local\">NOS</maintainer>
+  <maintainer email="nos@local">NOS</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
@@ -480,6 +482,10 @@ script_dir=$base/lib/{package}
 install_scripts=$base/lib/{package}
 """.format(package=package_name)
 
+        # Get list of launch files directly from the output files
+        launch_files = [Path(f).name for f in files.keys() if f.endswith('.launch.py')]
+        launch_files_str = ", ".join([f"'launch/{f}'" for f in sorted(launch_files)])
+
         setup_py = f"""from setuptools import find_packages, setup
 
 package_name = '{package_name}'
@@ -491,7 +497,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', ['launch/' + f for f in []]),
+        ('share/' + package_name + '/launch', [{launch_files_str}]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -522,12 +528,10 @@ setup(
         package_module_dir = package_root / package_name
         launch_dir = package_root / "launch"
 
-        launch_files: List[Path] = []
         for file_path, content in files.items():
             rel_path = Path(file_path)
             if file_path.endswith('.launch.py'):
                 target = launch_dir / rel_path.name
-                launch_files.append(target)
             else:
                 target = package_module_dir / rel_path.name
 
@@ -535,13 +539,6 @@ setup(
             target.write_text(content, encoding='utf-8')
             if self.verbose:
                 print(f"  Wrote: {target}")
-
-        if launch_files:
-            setup_py_path = package_root / "setup.py"
-            setup_py = setup_py_path.read_text(encoding='utf-8')
-            launch_list = ", ".join([f"'launch/{f.name}'" for f in launch_files])
-            setup_py = setup_py.replace("['launch/' + f for f in []]", f"[{launch_list}]")
-            setup_py_path.write_text(setup_py, encoding='utf-8')
 
     def compile_multiple(self, file_paths: List[str]) -> Dict[str, CompilationResult]:
         """Compile multiple files and return results.

@@ -1,4 +1,4 @@
-﻿"""Semantic analysis module for NOS.
+"""Semantic analysis module for NOS.
 
 Provides type checking, symbol resolution, and validation
 of NOS AST nodes.

@@ -1,4 +1,4 @@
-﻿"""Setup script for NOS package."""
+"""Setup script for NOS package."""
 
 from setuptools import setup, find_packages
 from pathlib import Path

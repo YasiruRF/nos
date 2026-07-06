@@ -1,4 +1,4 @@
-﻿"""Pytest configuration and fixtures for NOS tests.
+"""Pytest configuration and fixtures for NOS tests.
 
 This module provides shared fixtures for the NOS test suite.
 Fixtures include default source locations, mock parser outputs,

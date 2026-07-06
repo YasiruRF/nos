@@ -1,4 +1,4 @@
-﻿"""Python code generator for NOS.
+"""Python code generator for NOS.
 
 Generates ROS2 Python nodes from NOS AST.
 """
@@ -90,7 +90,7 @@ class PythonGenerator(CodeGenerator):
             "from rclpy.node import Node",
             "from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy",
             "from rcl_interfaces.msg import ParameterDescriptor, FloatingPointRange, IntegerRange",
-            "from nos.runtime import NOSNode, NOSLifecycleNode",
+            "from nos.runtime import NOSNode, NOSLifecycleNode, create_qos_profile",
         ]
 
         # Add message type imports
@@ -307,13 +307,17 @@ class PythonGenerator(CodeGenerator):
         if qos is None:
             return "10"
 
-        reliability = qos.reliability if qos.reliability else "reliable"
-        depth = qos.depth if qos.depth else 10
+        args = []
+        if qos.reliability:
+            args.append(f"reliability='{qos.reliability}'")
+        if qos.durability:
+            args.append(f"durability='{qos.durability}'")
+        if qos.history:
+            args.append(f"history='{qos.history}'")
+        if qos.depth is not None:
+            args.append(f"depth={qos.depth}")
 
-        if reliability == "reliable":
-            return f"QoSProfile(reliability=ReliabilityPolicy.RELIABLE, depth={depth})"
-        else:
-            return f"QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, depth={depth})"
+        return f"create_qos_profile({', '.join(args)})"
 
     def _generate_callbacks(self, node: nodes.NodeDecl) -> str:
         """Generate callback method wrappers with security validation."""
@@ -327,19 +331,22 @@ class PythonGenerator(CodeGenerator):
         for sub in node.subscriptions:
             msg_type = sub.message_type.name
             callback_name = f"{sub.name}_received"
+            user_callback = callback_name
+            if f"on_{callback_name}" in user_implemented_events:
+                user_callback = f"on_{callback_name}"
             
             # Wrapper
             wrapper = f'''    def _on_{sub.name}_received(self, msg: {msg_type}):
         """Wrapper for {sub.name} subscription callback."""
         try:
-            self.{callback_name}(msg)
+            self.{user_callback}(msg)
         except Exception as e:
             self.get_logger().error(f"Error in {sub.name} callback: {{e}}")
 '''
             callbacks.append(wrapper)
             
             # Default implementation if not provided by user
-            if callback_name not in user_implemented_events:
+            if callback_name not in user_implemented_events and f"on_{callback_name}" not in user_implemented_events:
                 default_impl = f'''
     def {callback_name}(self, msg: {msg_type}):
         """Default implementation for {sub.name} messages."""
@@ -352,12 +359,15 @@ class PythonGenerator(CodeGenerator):
             svc_type = svc.service_type.name
             callback_name = f"{svc.name}_callback"
             user_callback_name = f"{svc.name}_request"
+            user_callback = user_callback_name
+            if f"on_{user_callback_name}" in user_implemented_events:
+                user_callback = f"on_{user_callback_name}"
             
             # Wrapper
             wrapper = f'''    def _{callback_name}(self, request, response):
         """Wrapper for {svc.name} service callback."""
         try:
-            return self.{user_callback_name}(request, response)
+            return self.{user_callback}(request, response)
         except Exception as e:
             self.get_logger().error(f"Error in {svc.name} service: {{e}}")
             response.success = False
@@ -366,7 +376,7 @@ class PythonGenerator(CodeGenerator):
             callbacks.append(wrapper)
             
             # Default implementation if not provided by user
-            if user_callback_name not in user_implemented_events:
+            if user_callback_name not in user_implemented_events and f"on_{user_callback_name}" not in user_implemented_events:
                 default_impl = f'''
     def {user_callback_name}(self, request, response):
         """Default implementation for {svc.name} requests."""

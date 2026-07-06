@@ -1,4 +1,4 @@
-﻿"""Security validation for embedded Python code in NOS.
+"""Security validation for embedded Python code in NOS.
 
 This module provides security checks to prevent code injection
 attacks through embedded Python code blocks.

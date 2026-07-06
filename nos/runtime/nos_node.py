@@ -1,4 +1,4 @@
-﻿"""Base node classes for NOS generated code.
+"""Base node classes for NOS generated code.
 
 Provides enhanced functionality on top of standard ROS2 nodes.
 """

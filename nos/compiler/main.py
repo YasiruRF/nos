@@ -1,4 +1,4 @@
-﻿"""CLI entry point for NOS compiler.
+"""CLI entry point for NOS compiler.
 
 Provides command-line interface for compiling NOS files.
 """

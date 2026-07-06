@@ -1,4 +1,4 @@
-﻿"""Unit tests for AST node classes and the AST builder."""
+"""Unit tests for AST node classes and the AST builder."""
 """
 Tests cover:
     - SourceLocation creation and string representation

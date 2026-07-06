@@ -1,4 +1,4 @@
-﻿"""Launch file transpiler for NOS.
+"""Launch file transpiler for NOS.
 
 Converts NOS launch declarations to ROS2 Python launch files
 with full support for groups, containers, and event handling.

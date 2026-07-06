@@ -1,4 +1,4 @@
-﻿"""Symbol table implementation for NOS.
+"""Symbol table implementation for NOS.
 
 Provides scoped symbol storage with parent chain lookup,
 supporting nested scopes for packages, nodes, and callbacks.

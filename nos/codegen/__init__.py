@@ -1,4 +1,4 @@
-﻿"""Code generation module for NOS.
+"""Code generation module for NOS.
 
 Provides code generators for ROS2 targets including Python
 nodes and launch files.

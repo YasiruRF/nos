@@ -1,4 +1,4 @@
-﻿"""NOS (Node Orchestration System) - A declarative DSL for ROS2 robotics.
+"""NOS (Node Orchestration System) - A declarative DSL for ROS2 robotics.
 
 NOS Phase 1 (Core Language) provides:
 - ANTLR4 grammar definitions for .nos, .node, and .interface files

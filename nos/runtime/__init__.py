@@ -1,4 +1,4 @@
-﻿"""NOS runtime library for generated ROS2 nodes.
+"""NOS runtime library for generated ROS2 nodes.
 
 Provides base classes and utilities used by generated code.
 """

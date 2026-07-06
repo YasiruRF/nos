@@ -1,4 +1,4 @@
-﻿"""Decorators for NOS runtime.
+"""Decorators for NOS runtime.
 
 Provides decorators for declarative definition of parameters,
 subscriptions, publishers, services, and actions.

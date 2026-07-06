@@ -1,4 +1,4 @@
-﻿"""AST node definitions for NOS.
+"""AST node definitions for NOS.
 
 All AST nodes are dataclasses with source location information.
 This enables accurate error reporting and debugging.

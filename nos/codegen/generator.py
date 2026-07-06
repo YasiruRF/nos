@@ -1,4 +1,4 @@
-﻿"""Base code generator interface for NOS.
+"""Base code generator interface for NOS.
 
 Defines the contract that all code generators must implement.
 """
