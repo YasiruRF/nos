@@ -18,7 +18,6 @@ setup(
     install_requires=[
         "antlr4-python3-runtime>=4.13.0",
         "jinja2>=3.0.0",
-        "rclpy>=3.0.0",
     ],
     extras_require={
         "dev": [
