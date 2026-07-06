@@ -68,10 +68,16 @@ def create_parser() -> argparse.ArgumentParser:
         help='Automatically run the generated node after compilation'
     )
 
+    try:
+        from importlib.metadata import version as get_version
+        pkg_version = get_version("nos")
+    except Exception:
+        pkg_version = "0.1.1"
+
     parser.add_argument(
         '--version',
         action='version',
-        version='%(prog)s 0.1.0'
+        version=f'%(prog)s {pkg_version}'
     )
 
     return parser
