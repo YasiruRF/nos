@@ -1,0 +1,104 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "NOS",
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#annotations"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#types"
+        },
+        {
+            "include": "#injected-python"
+        }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.line.number-sign.nos",
+                    "match": "#.*$"
+                }
+            ]
+        },
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.nos",
+                    "match": "\\b(package|version|depends|node|publications|subscriptions|services|actions|launch|group|container|includes|lifecycle|managed|on_init|on_shutdown|on|message|service|action)\\b"
+                }
+            ]
+        },
+        "annotations": {
+            "patterns": [
+                {
+                    "name": "entity.name.tag.annotation.nos",
+                    "match": "@(topic|qos|service|client|reentrant|range|one_of|name|id)\\b"
+                }
+            ]
+        },
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.nos",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.nos",
+                            "match": "\\\\."
+                        }
+                    ]
+                },
+                {
+                    "name": "string.quoted.single.nos",
+                    "begin": "'",
+                    "end": "'",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.nos",
+                            "match": "\\\\."
+                        }
+                    ]
+                }
+            ]
+        },
+        "types": {
+            "patterns": [
+                {
+                    "name": "support.type.nos",
+                    "match": "\\b(int|float|double|string|bool|list|struct)\\b"
+                }
+            ]
+        },
+        "injected-python": {
+            "begin": "(->\\s*\\{)",
+            "beginCaptures": {
+                "1": {
+                    "name": "punctuation.section.block.begin.nos"
+                }
+            },
+            "end": "(^\\s*\\})",
+            "endCaptures": {
+                "1": {
+                    "name": "punctuation.section.block.end.nos"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "source.python"
+                }
+            ]
+        }
+    ],
+    "scopeName": "source.nos"
+}

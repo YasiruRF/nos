@@ -1,0 +1,37 @@
+{
+    "name": "vscode-nos",
+    "displayName": "NOS Language Support",
+    "description": "Syntax highlighting and language support for the Node Orchestration System (NOS) DSL.",
+    "version": "0.1.0",
+    "publisher": "nos-team",
+    "engines": {
+        "vscode": "^1.60.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "nos",
+                "aliases": [
+                    "NOS",
+                    "nos"
+                ],
+                "extensions": [
+                    ".nos",
+                    ".node",
+                    ".interface"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "nos",
+                "scopeName": "source.nos",
+                "path": "./syntaxes/nos.tmLanguage.json"
+            }
+        ]
+    }
+}
