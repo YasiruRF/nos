@@ -1,1 +1,1 @@
-recursive-include nos/nos/extensions/vscode-nos *
+recursive-include nos/extensions/vscode-nos *
