@@ -7,5 +7,5 @@ NOS Phase 1 (Core Language) provides:
 - Launch file transpiler
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 __all__ = ["compiler", "ast", "semantic", "codegen"]
