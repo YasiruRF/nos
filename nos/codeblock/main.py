@@ -7,7 +7,7 @@ import socket
 import webbrowser
 import http.server
 from pathlib import Path
-from nos.compiler.pipeline import Pipeline
+from nos.compiler.pipeline import CompilerPipeline as Pipeline
 
 HTML_CONTENT = """<!DOCTYPE html>
 <html lang="en">
