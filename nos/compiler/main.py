@@ -109,6 +109,26 @@ def format_result(result: CompilationResult, file_path: str) -> str:
     return "\n".join(lines)
 
 
+def setup_vscode_extension():
+    """Auto-install/update VS Code syntax highlighting extension if not present."""
+    try:
+        home = Path.home()
+        vscode_ext_dir = home / ".vscode" / "extensions" / "vscode-nos"
+        
+        # Locate the packaged extensions folder inside the nos package
+        src_ext_dir = Path(__file__).parent.parent / "extensions" / "vscode-nos"
+        
+        if src_ext_dir.exists():
+            if not vscode_ext_dir.exists():
+                import shutil
+                vscode_ext_dir.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copytree(src_ext_dir, vscode_ext_dir)
+                print("[NOS] VS Code syntax highlighting extension auto-installed successfully!")
+    except Exception:
+        # Ignore errors if VS Code is not installed or permissions are strict
+        pass
+
+
 def main(args: list = None) -> int:
     """Main entry point for the CLI.
 
@@ -118,6 +138,7 @@ def main(args: list = None) -> int:
     Returns:
         Exit code (0 for success, 1 for failure)
     """
+    setup_vscode_extension()
     parser = create_parser()
     parsed = parser.parse_args(args)
 

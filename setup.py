@@ -8,13 +8,14 @@ long_description = (this_directory / "README.md").read_text(encoding='utf-8')
 
 setup(
     name="nos",
-    version="0.1.4",
+    version="0.1.5",
     description="Node Orchestration System (NOS) - A declarative DSL for ROS2 robotics",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="NOS Team",
     license="Apache-2.0",
     packages=find_packages(),
+    include_package_data=True,
     install_requires=[
         "antlr4-python3-runtime>=4.13.0",
         "jinja2>=3.0.0",

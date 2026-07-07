@@ -98,7 +98,6 @@
                     "include": "source.python"
                 }
             ]
-        }
-    ],
+        },
     "scopeName": "source.nos"
 }

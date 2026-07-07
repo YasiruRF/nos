@@ -1049,6 +1049,12 @@ class CodeBlockHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"success": false, "errors": [str(e)]}).encode("utf-8"))
 
 def main():
+    try:
+        from nos.compiler.main import setup_vscode_extension
+        setup_vscode_extension()
+    except Exception:
+        pass
+
     port = 8080
     
     # Locate a free port if 8080 is taken
