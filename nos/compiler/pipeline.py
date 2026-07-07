@@ -462,7 +462,7 @@ class CompilerPipeline:
 
         entry_points = []
         for path in sorted(files.keys()):
-            if path.endswith('.py') and not path.endswith('.launch.py'):
+            if path.endswith('.py') and not path.endswith('_launch.py'):
                 module = Path(path).name
                 if module.endswith('.py'):
                     module = module[:-3]
@@ -496,7 +496,7 @@ install_scripts=$base/lib/{package}
 """.format(package=package_name)
 
         # Get list of launch files directly from the output files
-        launch_files = [Path(f).name for f in files.keys() if f.endswith('.launch.py')]
+        launch_files = [Path(f).name for f in files.keys() if f.endswith('_launch.py')]
         launch_files_str = ", ".join([f"'launch/{f}'" for f in sorted(launch_files)])
 
         setup_py = f"""from setuptools import find_packages, setup
@@ -543,7 +543,7 @@ setup(
 
         for file_path, content in files.items():
             rel_path = Path(file_path)
-            if file_path.endswith('.launch.py'):
+            if file_path.endswith('_launch.py'):
                 target = launch_dir / rel_path.name
             else:
                 target = package_module_dir / rel_path.name
