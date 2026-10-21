@@ -575,7 +575,6 @@ class RobotConfiguration:
 # AUTO-GENERATED: Do not edit manually
 
 from nos.runtime import NOSNode, NOSLifecycleNode
-from nos.runtime.decorators import parameter, subscription, publisher, service
 
 class LidarProcessorBase(NOSLifecycleNode):
     """Auto-generated base class for LidarProcessor node."""

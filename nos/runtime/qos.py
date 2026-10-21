@@ -3,8 +3,30 @@
 Provides convenient creation of common QoS profiles.
 """
 
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
+from rclpy.duration import Duration
+from rclpy.qos import (
+    QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy, LivelinessPolicy,
+)
 from typing import Optional
+
+
+_RELIABILITY = {"reliable": ReliabilityPolicy.RELIABLE,
+                "best_effort": ReliabilityPolicy.BEST_EFFORT}
+_DURABILITY = {"volatile": DurabilityPolicy.VOLATILE,
+               "transient_local": DurabilityPolicy.TRANSIENT_LOCAL}
+_HISTORY = {"keep_last": HistoryPolicy.KEEP_LAST,
+            "keep_all": HistoryPolicy.KEEP_ALL}
+_LIVELINESS = {"automatic": LivelinessPolicy.AUTOMATIC,
+               "manual_by_topic": LivelinessPolicy.MANUAL_BY_TOPIC}
+
+
+def _lookup(kind: str, table: dict, value: str):
+    try:
+        return table[value]
+    except (KeyError, TypeError):
+        raise ValueError(
+            f"invalid QoS {kind} {value!r}; expected one of: {', '.join(sorted(table))}"
+        ) from None
 
 
 def create_qos_profile(
@@ -21,9 +43,9 @@ def create_qos_profile(
 
     Args:
         reliability: 'reliable' or 'best_effort'
-        durability: 'volatile' or 'transient_local'
+        durability: 'volatile' (default) or 'transient_local'
         history: 'keep_last' or 'keep_all'
-        depth: History depth
+        depth: History depth (a positive integer)
         lifespan: Message lifespan in seconds
         deadline: Expected topic deadline in seconds
         liveliness: 'automatic' or 'manual_by_topic'
@@ -31,15 +53,16 @@ def create_qos_profile(
 
     Returns:
         Configured QoSProfile
+
+    Raises:
+        ValueError: for an unknown policy name or a non-positive depth
     """
-    reliability_policy = ReliabilityPolicy.RELIABLE if reliability == "reliable" \
-        else ReliabilityPolicy.BEST_EFFORT
+    reliability_policy = _lookup("reliability", _RELIABILITY, reliability)
+    durability_policy = _lookup("durability", _DURABILITY, durability or "volatile")
+    history_policy = _lookup("history", _HISTORY, history)
 
-    durability_policy = DurabilityPolicy.TRANSIENT_LOCAL if durability == "transient_local" \
-        else DurabilityPolicy.VOLATILE
-
-    history_policy = HistoryPolicy.KEEP_ALL if history == "keep_all" \
-        else HistoryPolicy.KEEP_LAST
+    if isinstance(depth, bool) or not isinstance(depth, int) or depth < 1:
+        raise ValueError(f"invalid QoS depth {depth!r}; expected a positive integer")
 
     qos = QoSProfile(
         reliability=reliability_policy,
@@ -49,20 +72,15 @@ def create_qos_profile(
     )
 
     if lifespan is not None:
-        from rclpy.duration import Duration
         qos.lifespan = Duration(seconds=lifespan)
 
     if deadline is not None:
-        from rclpy.duration import Duration
         qos.deadline = Duration(seconds=deadline)
 
     if liveliness is not None:
-        from rclpy.qos import LivelinessPolicy
-        qos.liveliness = LivelinessPolicy.AUTOMATIC if liveliness == "automatic" \
-            else LivelinessPolicy.MANUAL_BY_TOPIC
+        qos.liveliness = _lookup("liveliness", _LIVELINESS, liveliness)
 
     if liveliness_lease_duration is not None:
-        from rclpy.duration import Duration
         qos.liveliness_lease_duration = Duration(seconds=liveliness_lease_duration)
 
     return qos
