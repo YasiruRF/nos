@@ -98,7 +98,6 @@ class TestDangerousBuiltins:
         ("eval('1 + 1')"),
         ("eval(user_input)"),
         ("result = eval(expression)"),
-        ("EVAL('code')"),  # Case insensitive
     ])
     def test_eval_blocked(self, dangerous_code):
         sanitizer = PythonCodeSanitizer()
@@ -620,3 +619,109 @@ class TestViolationReporting:
         assert "HIGH" in message
         assert "Test message" in message
         assert "line 10" in message
+
+
+def _validate(code, strict=True):
+    return PythonCodeSanitizer(strict_mode=strict).validate(code)
+
+
+# Valid ROS code that used to be rejected (#22)
+ALLOWED_SNIPPETS = [
+    "import re\nre.compile('a+')",
+    "self.gripper.open()",
+    "self.sensor.input(3)",
+    "self.file(1)",
+    "self.help(1)",
+    "Open(1)",
+    "self.worker.run()",
+    "self.cli.call(req)",
+    "self.cli.call_async(req)",
+    "self.kill()",
+    "self.cfg.load()",
+    "self.cfg.loads(text)",
+    "import threading\nt = threading.Thread(target=self.work)\nt.start()",
+    "import hashlib\nhashlib.sha256(b'x').hexdigest()",
+    "x = 'open(file) and eval(x) are only words here'",
+    "# eval(this) is a comment\nx = 1",
+    "import numpy as np\nnp.array([1, 2]).mean()",
+    "from std_msgs.msg import String\nmsg = String()",
+    "from rclpy.node import Node",
+    "import json\njson.dumps({'a': 1})",
+    "super().__init__()",
+    "name = type(self).__name__",
+    "f = lambda a, b: a @ b",
+    "self.get_logger().info(f'{self.speed:.2f}')",
+    "x = getattr(self, 'speed')",
+]
+
+
+@pytest.mark.parametrize("code", ALLOWED_SNIPPETS)
+def test_valid_ros_code_is_accepted(code):
+    result = _validate(code)
+    assert result.is_safe, result.errors
+
+
+# Bypasses from the security report (#23)
+BLOCKED_SNIPPETS = [
+    "f = getattr(__builtins__, 'ev'+'al'); f('1')",
+    "__builtins__['ex'+'ec']('print(1)')",
+    "g = globals(); g['__buil'+'tins__']",
+    "import operator; operator.attrgetter('__cl'+'ass__')(())",
+    "'{0.__class__}'.format(1)",
+    "'{0[__class__]}'.format(1)",
+    "import numpy as np; np.loadtxt('/etc/passwd', dtype=str)",
+    "import numpy as np; np.savetxt('/tmp/x', [1])",
+    "from numpy import loadtxt",
+    "import numpy; numpy.load('x.npy', allow_pickle=True)",
+    "import rclpy.impl.implementation_singleton",
+    "import json; json.codecs",
+    "__import__ = 1",
+    "f = eval",
+    "x = vars(self)",
+    "x = locals()",
+    "setattr(self, name, 1)",
+    "getattr(self, name)",
+    "getattr(self, '__class__')",
+    "type('X', (object,), {})",
+    "().__class__.__bases__[0].__subclasses__()",
+    "self.__class__.__mro__",
+    "import types; types.CodeType",
+    "import types as t; t.FunctionType",
+    "import os",
+    "import io; io.open('/etc/passwd')",
+    "from . import secrets",
+    "import importlib",
+    "def f(): return __builtins__",
+    "f.__globals__",
+    "x = (lambda: 0).__code__",
+]
+
+
+@pytest.mark.parametrize("code", BLOCKED_SNIPPETS)
+def test_known_bypasses_are_blocked(code):
+    assert not _validate(code).is_safe, code
+
+
+class TestSanitizerAstBased:
+    def test_open_call_still_blocked(self):
+        assert not _validate("open('/etc/passwd')").is_safe
+
+    def test_builtin_in_string_is_not_flagged(self):
+        assert _validate("print('call eval( and exec( here')").is_safe
+
+    def test_block_after_dynamic_format_warns(self):
+        result = _validate("tpl = get_template()\ntpl.format(self)")
+        assert result.is_safe
+        assert any("non-literal template" in w for w in result.warnings)
+
+    def test_local_variable_named_like_module_is_fine(self):
+        assert _validate("path = [1, 2]\npath.append(3)").is_safe
+        assert _validate("code = 3\nprint(code)").is_safe
+
+    def test_dunder_name_error_mentions_the_name(self):
+        result = _validate("x = obj.__dict__")
+        assert any("__dict__" in e for e in result.errors)
+
+    def test_no_stale_python2_node_names_in_allowlist(self):
+        for stale in ("Num", "Str", "NameConstant", "TryExcept", "TryFinally", "Bytes"):
+            assert stale not in PythonCodeSanitizer.ALLOWED_AST_NODES

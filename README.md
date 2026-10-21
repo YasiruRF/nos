@@ -268,7 +268,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 - [x] Python code generator
 - [x] Launch file transpiler
 - [x] Runtime library
-- [x] Security validation
+- [x] Security validation of embedded Python (a guard rail, not a sandbox: see [docs/security.md](docs/security.md))
 - [x] Callback syntax & custom events (Issue #6)
 
 ### Phase 2: Extended Features (Planned)
