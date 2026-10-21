@@ -3,7 +3,7 @@
 ## Current Status: Phase 1 (Core Language Implementation)
 
 ### Completed Milestones ✓
-- **ANTLR4 Grammar Definition**: Robust grammar for `.nos`, `.node`, and `.interface` files.
+- **ANTLR4 Grammar Definition**: Robust grammar for `.node` and `.interface` files.
 - **Operator Precedence**: Corrected mathematical and logical precedence in the grammar (PEMDAS/BODMAS).
 - **AST Construction**: Labeled AST building logic that ensures 1:1 mapping between parse tree and typed nodes.
 - **Environment Modernization**: Dev environment updated to Java 21 and Go 1.26.2.

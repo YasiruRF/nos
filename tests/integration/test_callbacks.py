@@ -41,7 +41,7 @@ node CallbackNode {
     }
 }
 """
-    result = pipeline.compile_string(nos_source, "test_callbacks.nos")
+    result = pipeline.compile_string(nos_source, "test_callbacks.node")
     
     assert result.success, f"Compilation failed: {result.errors}"
     assert "callback_node_node.py" in result.files

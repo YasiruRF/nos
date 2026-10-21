@@ -17,13 +17,13 @@ from nos.ast.nodes import SourceLocation
 @pytest.fixture
 def source_location():
     """Create a default source location for testing."""
-    return SourceLocation(line=1, column=0, file="test.nos")
+    return SourceLocation(line=1, column=0, file="test.node")
 
 
 @pytest.fixture
 def test_file_location():
     """Create a source location pointing to a test file."""
-    return SourceLocation(line=1, column=0, file="/tmp/test.nos")
+    return SourceLocation(line=1, column=0, file="/tmp/test.node")
 
 
 @pytest.fixture

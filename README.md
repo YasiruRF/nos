@@ -131,9 +131,10 @@ tests/                # Test suite
 
 ## File Extensions
 
-- `.nos` - System definition files (packages, imports, launch declarations)
-- `.node` - Node component definitions
-- `.interface` - Message/service/action interface definitions
+- `.node` - NOS source files: packages, imports, node definitions and launch declarations
+- `.interface` - Message/service/action interface definitions (parsed, but not yet compiled: see the compiler diagnostics)
+
+The legacy `.nos` extension is no longer accepted; rename such files to `.node`.
 
 ## Key Features
 
@@ -223,7 +224,7 @@ nos input.node -v
 nos input.node --dry-run
 
 # Multiple files
-nos file1.node file2.nos -o generated/
+nos file1.node file2.node -o generated/
 
 # Show version
 nos --version

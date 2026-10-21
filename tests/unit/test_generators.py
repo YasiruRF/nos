@@ -19,7 +19,7 @@ class TestPythonGenerator:
         assert gen.target == 'python'
 
     def test_generate_simple_node(self):
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         node = NodeDecl(
             location=loc,
             name="TestNode",
@@ -41,7 +41,7 @@ class TestPythonGenerator:
         assert "test_node_node.py" in output.files
 
     def test_generate_node_with_params(self):
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         param = ParameterDecl(
             location=loc,
             name="frame_id",
@@ -70,7 +70,7 @@ class TestPythonGenerator:
         assert "declare_parameter" in code
 
     def test_generate_subscription(self):
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         sub = SubscriptionDecl(
             location=loc,
             name="scan",
@@ -122,7 +122,7 @@ class TestLaunchTranspiler:
         assert trans.launch_counter == 0
 
     def test_generate_launch(self):
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         launch = LaunchDecl(
             location=loc,
             name="TestLaunch",
@@ -142,7 +142,7 @@ class TestLaunchTranspiler:
         assert "test_launch_launch.py" in output.files
 
     def test_generate_launch_with_group(self):
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         node = NodeInstance(
             location=loc,
             name="lidar",
@@ -175,7 +175,7 @@ class TestLaunchTranspiler:
         assert "lidar" in code
 
     def test_generate_container(self):
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         comp = ComponentInstance(
             location=loc,
             name="processor",
@@ -210,7 +210,7 @@ class TestLaunchTranspiler:
     def test_generate_launch_with_substitutions(self):
         """Test generating launch description with call expressions and interpolated configurations."""
         from nos.ast.nodes import CallExpression, InterpolatedExpression, LiteralExpression, IdentifierExpression, ArgumentDecl, PrimitiveType, PrimitiveTypeKind
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         
         find_pkg = CallExpression(
             location=loc,
@@ -311,7 +311,7 @@ class TestCodeGenerationEdgeCases:
     def test_expression_to_python_literal(self):
         """Test expression conversion to Python."""
         gen = PythonGenerator()
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
 
         # Integer literal
         int_lit = LiteralExpression(location=loc, value=42, literal_type="int")
@@ -328,7 +328,7 @@ class TestCodeGenerationEdgeCases:
     def test_expression_to_python_identifier(self):
         """Test identifier expression conversion."""
         gen = PythonGenerator()
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
 
         ident = IdentifierExpression(location=loc, name="my_var")
         assert gen._expression_to_python(ident) == "my_var"
@@ -336,7 +336,7 @@ class TestCodeGenerationEdgeCases:
     def test_python_type_conversion(self):
         """Test NOS type to Python type conversion."""
         gen = PythonGenerator()
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
 
         # Primitive types
         int_type = PrimitiveType(location=loc, kind=PrimitiveTypeKind.INT)
@@ -350,7 +350,7 @@ class TestCodeGenerationEdgeCases:
 
     def test_empty_node_generation(self):
         """Test generation of empty node."""
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         node = NodeDecl(
             location=loc,
             name="EmptyNode",
@@ -375,7 +375,7 @@ class TestCodeGenerationEdgeCases:
 
     def test_action_server_generation(self):
         """Test code generation for nodes containing Action Servers."""
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         node = NodeDecl(
             location=loc,
             name="ActionNode",
@@ -410,7 +410,7 @@ class TestCodeGenerationEdgeCases:
     def test_clients_and_reentrant_generation(self):
         """Test code generation for service/action clients and reentrant callback groups."""
         from nos.ast.nodes import Constraint, ServiceDecl
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         node = NodeDecl(
             location=loc,
             name="ClientNode",
@@ -479,7 +479,7 @@ class TestCodeGenerationEdgeCases:
     def test_action_server_with_validation_generation(self):
         """Test Action Server generation with user-defined goal and cancel callbacks."""
         from nos.ast.nodes import CallbackDecl
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         node = NodeDecl(
             location=loc,
             name="ValNode",

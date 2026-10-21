@@ -19,7 +19,7 @@ class ASTBuilder:
     Usage:
         parser = NOSParser(CommonTokenStream(...))
         tree = parser.nosFile()
-        builder = ASTBuilder(file_name="example.nos")
+        builder = ASTBuilder(file_name="example.node")
         ast = builder.visit(tree)
     """
 

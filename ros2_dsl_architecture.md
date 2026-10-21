@@ -27,8 +27,7 @@ NOS (Node Orchestration System) is a declarative domain-specific language design
 
 ### File Extensions and Structure
 
-- `.nos` - Main system definition files
-- `.node` - Reusable node component definitions
+- `.node` - NOS source files: packages, node components and launch declarations
 - `.interface` - Message/service/action interface definitions
 
 ---
@@ -37,7 +36,7 @@ NOS (Node Orchestration System) is a declarative domain-specific language design
 
 ### 2.1 Package and Module System
 
-**NOS (.nos)**:
+**NOS (.node)**:
 ```nos
 package robot_navigation
 version "1.0.0"
@@ -222,7 +221,7 @@ if __name__ == '__main__':
 
 ### 2.3 Launch System
 
-**NOS Launch (.nos)**:
+**NOS Launch (.node)**:
 ```nos
 launch NavigationStack {
     # Grouping with implicit namespace
@@ -552,7 +551,7 @@ class RobotConfiguration:
 +-------------+    +--------------+    +--------------+    +-------------+
 |  NOS        |--->|   Parser     |--->|    AST       |--->|   CodeGen   |
 |  Source     |    |  (ANTLR4)    |    |  Validation  |    |  (Python/   |
-|  (.nos)     |    |              |    |              |    |   C++)      |
+|  (.node)     |    |              |    |              |    |   C++)      |
 +-------------+    +--------------+    +--------------+    +------+------+
                                                                   |
                     +--------------+                              |
@@ -695,7 +694,7 @@ nos_generate(
         msg/SensorFusionOutput.interface
         srv/SetNavigationGoal.interface
     LAUNCH
-        launch/navigation_stack.nos
+        launch/navigation_stack.node
     PYTHON
         OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated
     CPP
@@ -763,8 +762,8 @@ ros2 topic list  # Shows NOS topics
 ros2 param list /lidar_processor  # Shows NOS parameters
 
 # NOS adds enhanced commands
-ros2 nos validate  # Validate .nos files without building
-ros2 nos visualize launch navigation_stack.nos  # Generate system diagram
+ros2 nos validate  # Validate .node files without building
+ros2 nos visualize launch navigation_stack.node  # Generate system diagram
 ros2 nos generate --target=cpp  # Trigger code generation
 ros2 nos debug /lidar_processor  # Enhanced debugging with source mapping
 ```
@@ -965,8 +964,8 @@ simulation NavigationSimulation {
 ### 6.1 Gradual Migration Strategy
 
 ```
-Phase 1: Launch files (.py/.xml -> .nos)
-Phase 2: Node parameters (yaml -> .nos schema)
+Phase 1: Launch files (.py/.xml -> .node)
+Phase 2: Node parameters (yaml -> .node schema)
 Phase 3: New nodes in NOS
 Phase 4: Legacy node wrappers
 Phase 5: Full NOS adoption

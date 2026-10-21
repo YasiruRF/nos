@@ -86,7 +86,7 @@ class CompilerPipeline:
 
     Usage:
         >>> pipeline = CompilerPipeline()
-        >>> result = pipeline.compile_file("input.nos")
+        >>> result = pipeline.compile_file("input.node")
         >>> if result.success:
         ...     pipeline.write_outputs(result, "output_dir/")
         ...     print(f"Generated {len(result.files)} files")

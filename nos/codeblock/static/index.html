@@ -419,7 +419,7 @@
             <span class="editor-title">Prototype Editor</span>
         </div>
         <div class="header-actions">
-            <button class="btn-secondary" onclick="exportNOSFile()">💾 Save .nos</button>
+            <button class="btn-secondary" onclick="exportNOSFile()">💾 Save .node</button>
             <button class="btn-primary" onclick="compilePackage()">⚡ Compile & Build</button>
         </div>
     </header>
@@ -456,7 +456,7 @@
         <!-- Code Preview -->
         <div class="preview-panel">
             <div class="preview-header">
-                <span class="preview-title">Generated DSL Code (.nos)</span>
+                <span class="preview-title">Generated DSL Code (.node)</span>
                 <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="copyCodeToClipboard()">📋 Copy</button>
             </div>
             <div class="preview-body">
@@ -928,10 +928,10 @@ ${lines}
             }
             
             let pkgBlock = activeBlocks.find(b => b.type === 'package');
-            let filename = "estimating_example.nos";
+            let filename = "program.node";
             if (pkgBlock) {
                 const name = pkgBlock.fields.find(f => f.name === 'name').value;
-                filename = `${name}.nos`;
+                filename = `${name}.node`;
             }
 
             fetch('/api/save', {

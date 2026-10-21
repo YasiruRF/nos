@@ -29,7 +29,7 @@ class TestCompilerPipeline:
     def test_compile_empty_ast(self):
         """Test compilation with minimal AST."""
         pipeline = CompilerPipeline()
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
 
         # Create minimal AST
         file_node = File(
@@ -39,7 +39,7 @@ class TestCompilerPipeline:
             declarations=[]
         )
 
-        result = pipeline.compile_string("", "test.nos")
+        result = pipeline.compile_string("", "test.node")
         assert isinstance(result, CompilationResult)
 
 
@@ -54,7 +54,7 @@ class TestEndToEndFlow:
         )
 
         # 1. Create AST
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         param = ParameterDecl(
             location=loc,
             name="test_param",
@@ -101,7 +101,7 @@ class TestEndToEndFlow:
         from nos.ast.nodes import ArgumentDecl, PrimitiveType, PrimitiveTypeKind
 
         # 1. Create AST
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
         arg = ArgumentDecl(
             location=loc,
             name="test_arg",
@@ -142,7 +142,7 @@ class TestErrorHandling:
         from nos.semantic.analyzer import ReferenceResolver
         from nos.ast.nodes import IdentifierExpression
 
-        loc = SourceLocation(10, 5, "test.nos")
+        loc = SourceLocation(10, 5, "test.node")
         symbol_table = SymbolTable()
         analyzer = SemanticAnalyzer()
 
@@ -170,7 +170,7 @@ class TestMultiFileCompilation:
 
     def test_compile_multiple_nodes(self):
         """Test compiling multiple node definitions."""
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
 
         nodes = []
         for i in range(3):
@@ -204,7 +204,7 @@ class TestRoundTrip:
         """Test that node structure is preserved through pipeline."""
         from nos.ast.nodes import SubscriptionDecl, QualifiedType
 
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
 
         sub = SubscriptionDecl(
             location=loc,
@@ -257,7 +257,7 @@ node SyntaxErrorNode {
     }
 }
 """
-        result = pipeline.compile_string(source, "test.nos")
+        result = pipeline.compile_string(source, "test.node")
         assert result.success is False
         assert len(result.errors) > 0
         assert any("Syntax error" in err or "invalid syntax" in err for err in result.errors)

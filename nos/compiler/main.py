@@ -11,6 +11,9 @@ from pathlib import Path
 
 from .pipeline import CompilerPipeline, CompilationResult
 
+SOURCE_SUFFIXES = ('.node', '.interface')
+LEGACY_SUFFIX = '.nos'
+
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for the CLI."""
@@ -22,7 +25,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         'files',
         nargs='+',
-        help='NOS source files (.nos, .node, .interface)'
+        help='NOS source files (.node, .interface)'
     )
 
     parser.add_argument(
@@ -148,8 +151,13 @@ def main(args: list = None) -> int:
         path = Path(f)
         if not path.exists():
             invalid_files.append(f"File not found: {f}")
-        elif not path.suffix in ['.nos', '.node', '.interface']:
-            invalid_files.append(f"Invalid file type: {f}")
+        elif path.suffix.lower() == LEGACY_SUFFIX:
+            invalid_files.append(
+                f"{f}: the '{LEGACY_SUFFIX}' extension is no longer supported; "
+                f"rename the file to '{path.with_suffix('.node').name}'"
+            )
+        elif path.suffix.lower() not in SOURCE_SUFFIXES:
+            invalid_files.append(f"Invalid file type: {f} (expected .node or .interface)")
 
     if invalid_files:
         for error in invalid_files:
