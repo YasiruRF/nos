@@ -521,7 +521,16 @@ class ASTBuilder:
                 name = self._get_text(id_ctx)
 
         args = []
-        if hasattr(ctx, 'expressionList') and callable(ctx.expressionList):
+        arg_list_ctx = ctx.argumentList() if hasattr(ctx, 'argumentList') and callable(ctx.argumentList) else None
+        if arg_list_ctx is not None:
+            # @name(arg, key=value, ...): positional and named arguments, in order
+            for arg_ctx in arg_list_ctx.argument() or []:
+                expr_ctx = arg_ctx.expression()
+                if expr_ctx is not None:
+                    arg = self.visit_expression(expr_ctx)
+                    if arg:
+                        args.append(arg)
+        elif hasattr(ctx, 'expressionList') and callable(ctx.expressionList):
             el_ctx = ctx.expressionList()
             if el_ctx and hasattr(el_ctx, 'expression') and callable(el_ctx.expression):
                 exprs = el_ctx.expression()

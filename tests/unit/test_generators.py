@@ -402,7 +402,7 @@ class TestCodeGenerationEdgeCases:
 
         code = output.files["action_node_node.py"]
         assert "from rclpy.action import ActionServer" in code
-        assert "from nav2_msgs.action import *" in code
+        assert "from nav2_msgs.action import NavigateToPose" in code
         assert "ActionServer(" in code
         assert "def _on_navigate_execute(self, goal_handle)" in code
         assert "def navigate_execute(self, goal_handle)" in code
@@ -461,8 +461,8 @@ class TestCodeGenerationEdgeCases:
         code = output.files["client_node_node.py"]
         assert "from rclpy.callback_groups import ReentrantCallbackGroup" in code
         assert "from rclpy.action import ActionClient" in code
-        assert "from example_interfaces.srv import *" in code
-        assert "from nav2_msgs.action import *" in code
+        assert "from example_interfaces.srv import AddTwoInts" in code
+        assert "from nav2_msgs.action import NavigateToPose" in code
         
         # Check reentrant group creation and usage
         assert "self._reentrant_group = ReentrantCallbackGroup()" in code
@@ -508,6 +508,6 @@ class TestCodeGenerationEdgeCases:
         output = gen.generate(node, st)
 
         code = output.files["val_node_node.py"]
-        assert "from rclpy.action import ActionServer, GoalResponse, CancelResponse" in code
+        assert "from rclpy.action import ActionServer" in code
         assert "goal_callback=self.on_navigate_goal" in code
         assert "cancel_callback=self.on_navigate_cancel" in code

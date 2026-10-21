@@ -3,8 +3,7 @@
 Provides enhanced functionality on top of standard ROS2 nodes.
 """
 
-from typing import Optional, Callable, Any
-import rclpy
+from typing import Optional
 from rclpy.node import Node
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.lifecycle import State
@@ -93,23 +92,33 @@ class NOSLifecycleNode(LifecycleNode):
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
-        """Activate the node."""
+        """Activate the node (and its lifecycle publishers)."""
+        result = super().on_activate(state)
         self.log_info("Node activated")
-        return TransitionCallbackReturn.SUCCESS
+        return result
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:
-        """Deactivate the node."""
+        """Deactivate the node (and its lifecycle publishers)."""
+        result = super().on_deactivate(state)
         self.log_info("Node deactivated")
-        return TransitionCallbackReturn.SUCCESS
+        return result
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
         """Cleanup the node."""
-        self.on_shutdown()
         self.log_info("Node cleaned up")
         return TransitionCallbackReturn.SUCCESS
 
-    def on_shutdown(self, state: State = None) -> TransitionCallbackReturn:
-        """Shutdown the node."""
+    def on_nos_shutdown(self) -> None:
+        """User shutdown hook, overridden by the code generated from ``on_shutdown ->``.
+
+        It has a different name from ``on_shutdown`` because ROS calls that one
+        with the lifecycle ``state`` argument.
+        """
+        pass
+
+    def on_shutdown(self, state: State) -> TransitionCallbackReturn:
+        """Shutdown transition: run the user hook."""
+        self.on_nos_shutdown()
         self.log_info("Node shutting down")
         return TransitionCallbackReturn.SUCCESS
 
