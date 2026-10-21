@@ -10,7 +10,6 @@ Run these tests:
     $ pytest tests/test_ast.py -v
 """
 
-
 from nos.ast.builder import ASTBuilder
 from nos.ast.nodes import (
     BinaryExpression,
