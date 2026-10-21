@@ -12,8 +12,8 @@ import tokenize
 from typing import Any, Dict, List, Optional, Set
 
 from ..ast import nodes
-from ..security import SecurityError, validate_callback_code
-from ..semantic import SymbolTable, SymbolType
+from ..security import validate_callback_code
+from ..semantic import SymbolTable
 from .generator import CodeGenerator, GenerationOutput
 from .naming import camel_to_snake, node_module_name
 
@@ -255,7 +255,7 @@ class PythonGenerator(CodeGenerator):
         """Generate __init__ method."""
         lines = [
             f"    def __init__(self, node_name: str = '{node_name}'):",
-            f"        super().__init__(node_name)",
+            "        super().__init__(node_name)",
             "",
             "        # Parameter declarations",
             "        self._declare_nos_parameters()",
@@ -365,7 +365,7 @@ class PythonGenerator(CodeGenerator):
                 [
                     f"        self._{sub.name}_sub = self.create_subscription(",
                     f"            {msg_type}, {topic_expr}, self.{callback_name}, {qos}{cb_group}",
-                    f"        )",
+                    "        )",
                 ]
             )
 
@@ -386,7 +386,7 @@ class PythonGenerator(CodeGenerator):
                 [
                     f"        self.{self._escape_identifier(pub.name)} = self.{create_pub}(",
                     f"            {msg_type}, {topic_expr}, {qos}{cb_group}",
-                    f"        )",
+                    "        )",
                 ]
             )
 
@@ -406,7 +406,7 @@ class PythonGenerator(CodeGenerator):
                     [
                         f"        self.{self._escape_identifier(svc.name)} = self.create_client(",
                         f"            {svc_type}, {svc_name}{cb_group}",
-                        f"        )",
+                        "        )",
                     ]
                 )
             else:
@@ -415,7 +415,7 @@ class PythonGenerator(CodeGenerator):
                     [
                         f"        self._{svc.name}_srv = self.create_service(",
                         f"            {svc_type}, {svc_name}, self.{callback_name}{cb_group}",
-                        f"        )",
+                        "        )",
                     ]
                 )
 
@@ -435,7 +435,7 @@ class PythonGenerator(CodeGenerator):
                     [
                         f"        self.{self._escape_identifier(act.name)} = ActionClient(",
                         f"            self, {action_type}, {action_name}{cb_group}",
-                        f"        )",
+                        "        )",
                     ]
                 )
             else:
@@ -468,7 +468,7 @@ class PythonGenerator(CodeGenerator):
                         f"        self._{act.name}_action_server = ActionServer(",
                         f"            self, {action_type}, {action_name},",
                         f"            execute_callback=self.{callback_name}{goal_cb}{cancel_cb}{cb_group}",
-                        f"        )",
+                        "        )",
                     ]
                 )
 
@@ -616,7 +616,7 @@ class PythonGenerator(CodeGenerator):
                         f"Security validation failed for callback '{cb.event}': " f"{validation_result.errors}"
                     )
                     # Replace dangerous code with a safe error message
-                    body = f"        # SECURITY ERROR: Callback code blocked due to security violations:\n"
+                    body = "        # SECURITY ERROR: Callback code blocked due to security violations:\n"
                     body += "        # " + "\n        # ".join(validation_result.errors)
                     body += "\n        self.get_logger().error('Security validation failed for callback')"
                     body += "\n        pass"
@@ -626,7 +626,7 @@ class PythonGenerator(CodeGenerator):
 
                     if validation_result.warnings:
                         # Prepend warnings as comments
-                        body = f"# SECURITY WARNINGS:\n"
+                        body = "# SECURITY WARNINGS:\n"
                         body += "# " + "\n# ".join(validation_result.warnings) + "\n" + body
                         # Log audit event
                         logger.info(

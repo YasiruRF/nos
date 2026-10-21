@@ -5,6 +5,8 @@ Generated nodes subclass :class:`NOSNode` (or :class:`NOSLifecycleNode` for
 callbacks.
 """
 
+from typing import TYPE_CHECKING, Any
+
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 from rclpy.node import Node
 
@@ -15,6 +17,10 @@ class _LoggingMixin:
     Keyword arguments are appended as ``key=value`` pairs, e.g.
     ``self.log_info("scan received", points=len(msg.ranges))``.
     """
+
+    if TYPE_CHECKING:  # provided by the rclpy node class this is mixed into
+
+        def get_logger(self) -> Any: ...
 
     def _format_log(self, msg: str, context: dict) -> str:
         if not context:

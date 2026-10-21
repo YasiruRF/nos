@@ -5,8 +5,11 @@ This enables accurate error reporting and debugging.
 """
 
 from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Union
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+
+if TYPE_CHECKING:
+    from .visitor import ASTVisitor
 
 
 @dataclass
@@ -84,8 +87,6 @@ class PrimitiveTypeKind(Enum):
 class Type(ASTNode):
     """Base class for all types."""
 
-    pass
-
 
 @dataclass
 class PrimitiveType(Type):
@@ -134,8 +135,6 @@ class StructType(Type):
 @dataclass
 class Expression(ASTNode):
     """Base class for expressions."""
-
-    pass
 
 
 @dataclass

@@ -9,7 +9,7 @@ Orchestrates semantic analysis passes including:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from ..ast import nodes
 from ..ast.visitor import ASTVisitor

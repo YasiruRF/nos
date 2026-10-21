@@ -93,6 +93,9 @@ line_length = 120
 extend_skip = ["nos/grammar"]
 
 [tool.mypy]
-python_version = "3.9"
 ignore_missing_imports = true
 exclude = ["nos/grammar/"]
+
+[[tool.mypy.overrides]]
+module = "nos.grammar.*"
+ignore_errors = true

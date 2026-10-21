@@ -9,7 +9,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional, Set, Tuple
+from typing import FrozenSet, List, Optional, Set, Tuple
 
 # Configure audit logging
 logger = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ class PythonCodeSanitizer:
 
     # Builtins that execute code, load code, or read files.  Blocked as bare
     # names in any position (call, assignment, argument).
-    DANGEROUS_BUILTINS: Set[str] = frozenset(
+    DANGEROUS_BUILTINS: FrozenSet[str] = frozenset(
         {
             "eval",
             "exec",
@@ -125,10 +125,10 @@ class PythonCodeSanitizer:
     )
 
     # Blocked as a bare *call* only (a variable called `input` is harmless).
-    DANGEROUS_CALLS: Set[str] = frozenset({"input", "raw_input", "help"})
+    DANGEROUS_CALLS: FrozenSet[str] = frozenset({"input", "raw_input", "help"})
 
     # Names that expose interpreter internals; blocked in any position.
-    INTROSPECTION_NAMES: Set[str] = frozenset(
+    INTROSPECTION_NAMES: FrozenSet[str] = frozenset(
         {
             "globals",
             "locals",
@@ -142,7 +142,7 @@ class PythonCodeSanitizer:
     )
 
     # Dunder names that are routinely needed and harmless.
-    ALLOWED_DUNDERS: Set[str] = frozenset(
+    ALLOWED_DUNDERS: FrozenSet[str] = frozenset(
         {
             "__init__",
             "__name__",
@@ -163,7 +163,7 @@ class PythonCodeSanitizer:
     )
 
     # Sensitive modules that provide system access
-    SENSITIVE_MODULES: Set[str] = frozenset(
+    SENSITIVE_MODULES: FrozenSet[str] = frozenset(
         {
             # System and process control
             "os",
@@ -244,7 +244,7 @@ class PythonCodeSanitizer:
     )
 
     # File operation patterns that indicate dangerous access (warnings)
-    FILE_OPERATIONS: Set[str] = frozenset(
+    FILE_OPERATIONS: FrozenSet[str] = frozenset(
         {
             "open",
             "file",
@@ -264,7 +264,7 @@ class PythonCodeSanitizer:
     )
 
     # Network operation patterns (warnings)
-    NETWORK_OPERATIONS: Set[str] = frozenset(
+    NETWORK_OPERATIONS: FrozenSet[str] = frozenset(
         {
             "socket",
             "connect",
@@ -285,7 +285,7 @@ class PythonCodeSanitizer:
     # ``call``, ``kill`` or ``load`` are *not* listed: they are ordinary
     # methods on user objects, and the modules that make them dangerous
     # (subprocess, os, pickle) cannot be imported anyway.
-    DANGEROUS_ATTRIBUTES: Set[str] = frozenset(
+    DANGEROUS_ATTRIBUTES: FrozenSet[str] = frozenset(
         {
             "system",
             "popen",
@@ -323,7 +323,7 @@ class PythonCodeSanitizer:
     )
 
     # Modules that may be imported (exact names; submodules are not implied)
-    SAFE_MODULES: Set[str] = frozenset(
+    SAFE_MODULES: FrozenSet[str] = frozenset(
         {
             # Math and numeric
             "math",
@@ -405,7 +405,7 @@ class PythonCodeSanitizer:
     )
 
     # ROS interface packages: any of their msg/srv/action modules may be imported
-    INTERFACE_PACKAGES: Set[str] = frozenset(
+    INTERFACE_PACKAGES: FrozenSet[str] = frozenset(
         {
             "std_msgs",
             "geometry_msgs",
@@ -428,7 +428,7 @@ class PythonCodeSanitizer:
             "turtlesim_msgs",
         }
     )
-    INTERFACE_SUBMODULES: Set[str] = frozenset({"msg", "srv", "action"})
+    INTERFACE_SUBMODULES: FrozenSet[str] = frozenset({"msg", "srv", "action"})
 
     # Attributes of otherwise-allowed modules that reach files, build code
     # objects or reflect on other modules.
@@ -495,7 +495,7 @@ class PythonCodeSanitizer:
     }
 
     # Allowed AST node types for allowlist-based validation (Python 3.9+)
-    ALLOWED_AST_NODES: Set[str] = frozenset(
+    ALLOWED_AST_NODES: FrozenSet[str] = frozenset(
         {
             # Module structure
             "Module",
@@ -960,6 +960,7 @@ class PythonCodeSanitizer:
 
     def _check_format_call(self, node: ast.Call) -> None:
         """``'{0.__class__}'.format(x)`` walks attributes inside a string."""
+        assert isinstance(node.func, ast.Attribute)
         template = node.func.value
         if isinstance(template, ast.Constant) and isinstance(template.value, str):
             for field_text in self._FORMAT_FIELD.findall(template.value):
@@ -1091,7 +1092,7 @@ class PythonCodeSanitizer:
         for builtin in ["eval", "exec"]:
             pattern = rf"(\b{builtin}\s*\([^)]*\))"
             if re.search(pattern, sanitized):
-                sanitized = re.sub(pattern, rf"# SECURITY_REMOVED: \1", sanitized)
+                sanitized = re.sub(pattern, r"# SECURITY_REMOVED: \1", sanitized)
                 modifications.append(f"Commented out {builtin}() call")
 
         # Remove dangerous imports

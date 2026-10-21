@@ -16,7 +16,7 @@ node CallbackNode {
     parameters {
         threshold: float = 0.5
     }
-    
+
     subscriptions {
         data: std_msgs::Float32 @topic("/data")
     }
@@ -37,7 +37,7 @@ node CallbackNode {
         if msg.data > self.threshold:
             self.get_logger().info("Threshold exceeded!")
     }
-    
+
     on my_custom_event(value: int) -> {
         self.get_logger().info(f"Custom event received with value: {value}")
     }

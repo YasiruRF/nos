@@ -1,8 +1,6 @@
 """Integration tests for the NOS compiler pipeline."""
 
-import pytest
-
-from nos.ast.nodes import File, ImportDecl, LaunchDecl, LiteralExpression, NodeDecl, PackageDecl, SourceLocation
+from nos.ast.nodes import File, LaunchDecl, LiteralExpression, NodeDecl, SourceLocation
 from nos.codegen import LaunchTranspiler, PythonGenerator
 from nos.compiler.pipeline import CompilationResult, CompilerPipeline
 from nos.semantic import SemanticAnalyzer, SymbolTable
@@ -27,7 +25,7 @@ class TestCompilerPipeline:
         loc = SourceLocation(1, 0, "test.node")
 
         # Create minimal AST
-        file_node = File(location=loc, package=None, imports=[], declarations=[])
+        File(location=loc, package=None, imports=[], declarations=[])
 
         result = pipeline.compile_string("", "test.node")
         assert isinstance(result, CompilationResult)

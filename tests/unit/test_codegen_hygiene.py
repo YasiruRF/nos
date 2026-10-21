@@ -4,8 +4,6 @@ import ast
 import subprocess
 import sys
 
-import pytest
-
 from nos.compiler.pipeline import CompilerPipeline
 from tests.helpers import assert_valid_python
 

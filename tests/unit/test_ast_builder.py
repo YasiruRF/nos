@@ -1,6 +1,5 @@
-"""Unit tests for AST node classes and the AST builder."""
+"""Unit tests for AST node classes and the AST builder.
 
-"""
 Tests cover:
     - SourceLocation creation and string representation
     - AST node creation (PackageDecl, NodeDecl, ParameterDecl, etc.)
@@ -11,23 +10,19 @@ Run these tests:
     $ pytest tests/test_ast.py -v
 """
 
-import pytest
 
 from nos.ast.builder import ASTBuilder
 from nos.ast.nodes import (
-    ASTNode,
     BinaryExpression,
     Constraint,
     File,
     IdentifierExpression,
-    LaunchDecl,
     LiteralExpression,
     NodeDecl,
     PackageDecl,
     ParameterDecl,
     PrimitiveType,
     PrimitiveTypeKind,
-    PublicationDecl,
     QualifiedType,
     SourceLocation,
     SubscriptionDecl,

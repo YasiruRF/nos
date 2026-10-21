@@ -35,11 +35,13 @@ def ros_package_name(ast: Optional[nodes.ASTNode]) -> str:
         if ast.package and ast.package.name:
             candidate = ast.package.name
         elif ast.declarations:
-            first_decl = ast.declarations[0]
-            if getattr(first_decl, "name", None):
-                candidate = first_decl.name
-    elif ast is not None and getattr(ast, "name", None):
-        candidate = ast.name
+            name = getattr(ast.declarations[0], "name", None)
+            if name:
+                candidate = name
+    elif ast is not None:
+        name = getattr(ast, "name", None)
+        if name:
+            candidate = name
 
     return sanitize_package_name(candidate)
 

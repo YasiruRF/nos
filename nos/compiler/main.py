@@ -4,6 +4,7 @@ Provides command-line interface for compiling NOS files.
 """
 
 import argparse
+import json
 import logging
 import os
 import shutil
@@ -101,8 +102,6 @@ def install_vscode_extension(home: Optional[Path] = None) -> bool:
     An existing copy is replaced when its version differs from the bundled one.
     Failures are reported on stderr; returns True on success.
     """
-    import json
-
     home = home or Path.home()
     src = Path(__file__).parent.parent / "extensions" / "vscode-nos"
     dest = home / ".vscode" / "extensions" / "vscode-nos"

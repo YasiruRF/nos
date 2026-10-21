@@ -36,7 +36,7 @@ SOURCE_SUFFIX = ".node"
 
 def load_index_html() -> str:
     """The editor page, packaged as ``static/index.html``."""
-    return resources.files(__package__).joinpath("static", "index.html").read_text(encoding="utf-8")
+    return resources.files(__package__).joinpath("static").joinpath("index.html").read_text(encoding="utf-8")
 
 
 class PathError(ValueError):
@@ -65,13 +65,33 @@ def safe_filename(name: str) -> str:
     return name
 
 
+class EditorServer(http.server.HTTPServer):
+    """HTTP server that carries the per-session state the handler checks."""
+
+    def __init__(self, address, handler, workdir: Path, token: str):
+        super().__init__(address, handler)
+        self.workdir = workdir.resolve()
+        self.token = token
+        port = self.server_address[1]
+        self.allowed_hosts = frozenset({f"127.0.0.1:{port}", f"localhost:{port}"})
+
+
 class CodeBlockHandler(http.server.BaseHTTPRequestHandler):
     """HTTP request handler for the code block visual editor."""
 
-    # set on the handler class by make_server()
-    token: str = ""
-    workdir: Path = Path.cwd()
-    allowed_hosts: frozenset = frozenset()
+    server: EditorServer  # type: ignore[assignment]
+
+    @property
+    def token(self) -> str:
+        return self.server.token
+
+    @property
+    def workdir(self) -> Path:
+        return self.server.workdir
+
+    @property
+    def allowed_hosts(self) -> frozenset:
+        return self.server.allowed_hosts
 
     def log_message(self, format, *args):
         logger.debug("%s - %s", self.address_string(), format % args)
@@ -206,29 +226,21 @@ class CodeBlockHandler(http.server.BaseHTTPRequestHandler):
         self._send_json(200, {"success": True, "path": str(out_dir)})
 
 
-def make_server(
-    port: int = DEFAULT_PORT, workdir: Optional[Path] = None, host: str = "127.0.0.1"
-) -> http.server.HTTPServer:
+def make_server(port: int = DEFAULT_PORT, workdir: Optional[Path] = None, host: str = "127.0.0.1") -> EditorServer:
     """Create (but do not start) the editor server.
 
     Binds to ``host`` only; if ``port`` is taken, an ephemeral port is used.
     ``port=0`` always picks a free port.  The chosen port is
     ``server.server_address[1]`` and the session token is ``server.token``.
     """
-    handler = type("BoundCodeBlockHandler", (CodeBlockHandler,), {})
+    token = secrets.token_urlsafe(32)
+    directory = workdir or Path.cwd()
     try:
-        server = http.server.HTTPServer((host, port), handler)
+        return EditorServer((host, port), CodeBlockHandler, directory, token)
     except OSError:
         if port == 0:
             raise
-        server = http.server.HTTPServer((host, 0), handler)
-
-    bound_port = server.server_address[1]
-    handler.token = secrets.token_urlsafe(32)
-    handler.workdir = (workdir or Path.cwd()).resolve()
-    handler.allowed_hosts = frozenset({f"127.0.0.1:{bound_port}", f"localhost:{bound_port}"})
-    server.token = handler.token
-    return server
+        return EditorServer((host, 0), CodeBlockHandler, directory, token)
 
 
 def main(argv: Optional[list] = None) -> int:
@@ -238,7 +250,7 @@ def main(argv: Optional[list] = None) -> int:
     port = server.server_address[1]
     url = f"http://localhost:{port}/"
     print(f"Starting NOS Visual CodeBlock editor on {url}")
-    print(f"Files are saved under {server.RequestHandlerClass.workdir}")
+    print(f"Files are saved under {server.workdir}")
 
     webbrowser.open(url)
 

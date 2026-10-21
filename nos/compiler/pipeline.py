@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 from xml.sax.saxutils import escape as xml_escape
 
 # ANTLR4 imports
-from antlr4 import CommonTokenStream, InputStream, ParseTreeWalker
+from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
 from ..ast import nodes
@@ -408,7 +408,8 @@ class CompilerPipeline:
             return {}
         try:
             return json.loads(cache_file.read_text(encoding="utf-8"))
-        except Exception:
+        except (OSError, ValueError) as e:
+            logger.warning("Ignoring unreadable build cache %s: %s", cache_file, e)
             return {}
 
     def _update_build_cache(self, workspace_path: Path, package_name: str, fingerprint: str) -> None:

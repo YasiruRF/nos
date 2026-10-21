@@ -1,10 +1,6 @@
 """Unit tests for the semantic analyzer and symbol table."""
 
-import pytest
-
 from nos.ast.nodes import (
-    IdentifierExpression,
-    LaunchDecl,
     LiteralExpression,
     NodeDecl,
     PackageDecl,
@@ -80,7 +76,7 @@ class TestSymbolTable:
 
     def test_define_and_lookup(self):
         st = SymbolTable()
-        loc = SourceLocation(1, 0, "test.node")
+        SourceLocation(1, 0, "test.node")
         symbol = Symbol(name="my_param", symbol_type=SymbolType.PARAMETER, node=None, scope=st.current_scope)
         st.define(symbol)
 
@@ -90,7 +86,7 @@ class TestSymbolTable:
 
     def test_find_by_type(self):
         st = SymbolTable()
-        loc = SourceLocation(1, 0, "test.node")
+        SourceLocation(1, 0, "test.node")
 
         node_symbol = Symbol("Node1", SymbolType.NODE, None, st.current_scope)
         param_symbol = Symbol("param1", SymbolType.PARAMETER, None, st.current_scope)
@@ -104,7 +100,7 @@ class TestSymbolTable:
 
     def test_find_parameters(self):
         st = SymbolTable()
-        loc = SourceLocation(1, 0, "test.node")
+        SourceLocation(1, 0, "test.node")
 
         node_scope = st.push_scope("MyNode", "node")
         param = Symbol("speed", SymbolType.PARAMETER, None, node_scope)

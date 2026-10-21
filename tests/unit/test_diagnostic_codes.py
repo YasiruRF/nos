@@ -29,9 +29,12 @@ CASES = {
     "E013": 'package a\nnode N { subscriptions { s: std_msgs::String @topic("/x") @qos(depth=0) } }',
     "E014": "package a\nnode N { parameters { x: int = 1 @range(3, 2) } }",
     "E015": 'package a\nnode N { parameters { x: int = "text" } }',
-    "W001": 'package a\nnode N { subscriptions { s: std_msgs::String @topic("/x")\n s: std_msgs::String @topic("/y") } }',
-    "W002": 'package a\nnode N { publications { p: std_msgs::String @topic("/x")\n p: std_msgs::String @topic("/y") } }',
-    "W003": 'package a\nnode N { services { s: std_srvs::Trigger @service("/x")\n s: std_srvs::Trigger @service("/y") } }',
+    "W001": 'package a\nnode N { subscriptions { s: std_msgs::String @topic("/x")\n'
+    ' s: std_msgs::String @topic("/y") } }',
+    "W002": 'package a\nnode N { publications { p: std_msgs::String @topic("/x")\n'
+    ' p: std_msgs::String @topic("/y") } }',
+    "W003": 'package a\nnode N { services { s: std_srvs::Trigger @service("/x")\n'
+    ' s: std_srvs::Trigger @service("/y") } }',
     "W004": "package a\nnode N { actions { s: nav2_msgs::NavigateToPose\n s: nav2_msgs::NavigateToPose } }".replace(
         "package a", 'package a depends: ["nav2_msgs"]'
     ),

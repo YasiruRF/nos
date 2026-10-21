@@ -5,7 +5,7 @@ and the strongly-typed AST node hierarchy.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from . import nodes
 
@@ -44,8 +44,12 @@ class ASTBuilder:
             return nodes.SourceLocation(line=0, column=0, file=self.file_name)
         return nodes.SourceLocation(line=ctx.start.line, column=ctx.start.column, file=self.file_name)
 
-    def visit(self, ctx) -> Optional[nodes.ASTNode]:
-        """Visit a parse tree node and return AST node."""
+    def visit(self, ctx) -> Any:
+        """Visit a parse tree node and return its AST node.
+
+        Dispatch is dynamic (``visit_<RuleName>``), so the result type depends on
+        the rule; each ``visit_*`` method declares its own precise return type.
+        """
         if ctx is None:
             return None
 
@@ -263,7 +267,7 @@ class ASTBuilder:
 
         # Check for list type
         if hasattr(ctx, "LIST") and ctx.LIST() is not None:
-            element_type = None
+            element_type: nodes.Type = self.visit_typeSpec(None)
             if hasattr(ctx, "typeSpec") and callable(ctx.typeSpec):
                 # `list<T>` has exactly one nested typeSpec, which ANTLR returns
                 # as a single context rather than a list.
@@ -298,7 +302,7 @@ class ASTBuilder:
             if id_ctx:
                 name = self._get_text(id_ctx)
 
-        type_ = None
+        type_: nodes.Type = self.visit_typeSpec(None)
         if hasattr(ctx, "typeSpec") and callable(ctx.typeSpec):
             ts_ctx = ctx.typeSpec()
             if ts_ctx:
@@ -320,7 +324,20 @@ class ASTBuilder:
     # Expressions
     # ==========================================================================
 
-    def visit_expression(self, ctx) -> nodes.Expression:
+    def _required(self, expr: Optional[nodes.Expression], ctx) -> nodes.Expression:
+        """Narrow an optional sub-expression the grammar guarantees to be present."""
+        if expr is None:
+            raise ValueError(f"{self._loc(ctx)}: expected an expression")
+        return expr
+
+    def _expr(self, ctx) -> nodes.Expression:
+        """Like :meth:`visit_expression`, for places where the grammar guarantees an expression."""
+        result = self.visit_expression(ctx)
+        if result is None:
+            raise ValueError(f"{self._loc(ctx)}: expected an expression")
+        return result
+
+    def visit_expression(self, ctx) -> Optional[nodes.Expression]:
         """Visit an expression.
 
         Every alternative of the ``expression`` rule is labeled in the grammar,
@@ -337,27 +354,27 @@ class ASTBuilder:
         return self.visit_primaryExpression(ctx.primaryExpression())
 
     def visit_MemberAccessExpr(self, ctx) -> nodes.Expression:
-        obj = self.visit(ctx.expression())
+        obj = self._expr(ctx.expression())
         member = self._get_text(ctx.identifier())
         return nodes.MemberAccessExpression(location=self._loc(ctx), object=obj, member=member)
 
     def visit_IndexExpr(self, ctx) -> nodes.Expression:
         exprs = ctx.expression()
-        return nodes.IndexExpression(location=self._loc(ctx), array=self.visit(exprs[0]), index=self.visit(exprs[1]))
+        return nodes.IndexExpression(location=self._loc(ctx), array=self._expr(exprs[0]), index=self._expr(exprs[1]))
 
     def visit_CallExpr(self, ctx) -> nodes.Expression:
-        callee = self.visit(ctx.expression())
+        callee = self._expr(ctx.expression())
         args = []
         if ctx.argumentList():
             for arg_ctx in ctx.argumentList().argument():
-                args.append(self.visit(arg_ctx.expression()))
+                args.append(self._expr(arg_ctx.expression()))
         return nodes.CallExpression(location=self._loc(ctx), callee=callee, arguments=args)
 
     def visit_InterpolatedExpr(self, ctx) -> nodes.Expression:
-        return nodes.InterpolatedExpression(location=self._loc(ctx), inner=self.visit(ctx.expression()))
+        return nodes.InterpolatedExpression(location=self._loc(ctx), inner=self._expr(ctx.expression()))
 
     def visit_UnaryExpr(self, ctx) -> nodes.Expression:
-        return nodes.UnaryExpression(location=self._loc(ctx), operator="!", operand=self.visit(ctx.expression()))
+        return nodes.UnaryExpression(location=self._loc(ctx), operator="!", operand=self._expr(ctx.expression()))
 
     def visit_MultiplicativeExpr(self, ctx) -> nodes.Expression:
         exprs = ctx.expression()
@@ -367,7 +384,7 @@ class ASTBuilder:
                 op = child.getText()
                 break
         return nodes.BinaryExpression(
-            location=self._loc(ctx), operator=op, left=self.visit(exprs[0]), right=self.visit(exprs[1])
+            location=self._loc(ctx), operator=op, left=self._expr(exprs[0]), right=self._expr(exprs[1])
         )
 
     def visit_AdditiveExpr(self, ctx) -> nodes.Expression:
@@ -378,7 +395,7 @@ class ASTBuilder:
                 op = child.getText()
                 break
         return nodes.BinaryExpression(
-            location=self._loc(ctx), operator=op, left=self.visit(exprs[0]), right=self.visit(exprs[1])
+            location=self._loc(ctx), operator=op, left=self._expr(exprs[0]), right=self._expr(exprs[1])
         )
 
     def visit_RelationalExpr(self, ctx) -> nodes.Expression:
@@ -390,19 +407,19 @@ class ASTBuilder:
                 op = t
                 break
         return nodes.BinaryExpression(
-            location=self._loc(ctx), operator=op, left=self.visit(exprs[0]), right=self.visit(exprs[1])
+            location=self._loc(ctx), operator=op, left=self._expr(exprs[0]), right=self._expr(exprs[1])
         )
 
     def visit_LogicalAndExpr(self, ctx) -> nodes.Expression:
         exprs = ctx.expression()
         return nodes.BinaryExpression(
-            location=self._loc(ctx), operator="&&", left=self.visit(exprs[0]), right=self.visit(exprs[1])
+            location=self._loc(ctx), operator="&&", left=self._expr(exprs[0]), right=self._expr(exprs[1])
         )
 
     def visit_LogicalOrExpr(self, ctx) -> nodes.Expression:
         exprs = ctx.expression()
         return nodes.BinaryExpression(
-            location=self._loc(ctx), operator="||", left=self.visit(exprs[0]), right=self.visit(exprs[1])
+            location=self._loc(ctx), operator="||", left=self._expr(exprs[0]), right=self._expr(exprs[1])
         )
 
     def visit_primaryExpression(self, ctx) -> nodes.Expression:
@@ -423,14 +440,14 @@ class ASTBuilder:
 
         # Handle parenthesized expression
         if hasattr(ctx, "expression") and callable(ctx.expression) and ctx.expression():
-            return self.visit(ctx.expression())
+            return self._expr(ctx.expression())
 
         text = self._get_text(ctx)
         return nodes.IdentifierExpression(location=self._loc(ctx), name=text)
 
     visit_PrimaryExpression = visit_primaryExpression
 
-    def visit_literal(self, ctx) -> nodes.LiteralExpression:
+    def visit_literal(self, ctx) -> nodes.Expression:
         """Visit literal value."""
         if ctx is None:
             return nodes.LiteralExpression(
@@ -467,13 +484,13 @@ class ASTBuilder:
 
         if hasattr(ctx, "LBRACKET") and ctx.LBRACKET() is not None:
             el_ctx = ctx.expressionList()
-            elements = [self.visit_expression(e) for e in (el_ctx.expression() if el_ctx else [])]
+            elements = [self._expr(e) for e in (el_ctx.expression() if el_ctx else [])]
             return nodes.ArrayExpression(location=self._loc(ctx), elements=elements)
 
         if hasattr(ctx, "STRUCT") and ctx.STRUCT() is not None:
-            fields = {}
+            fields: Dict[str, nodes.Expression] = {}
             for init in ctx.fieldInitializer() or []:
-                fields[self._get_text(init.identifier())] = self.visit_expression(init.expression())
+                fields[self._get_text(init.identifier())] = self._expr(init.expression())
             return nodes.StructInitializerExpression(location=self._loc(ctx), fields=fields)
 
         self._fallback(ctx, f"unrecognised literal {text!r}")
@@ -681,7 +698,7 @@ class ASTBuilder:
             if id_ctx:
                 name = self._get_text(id_ctx)
 
-        type_ = None
+        type_: nodes.Type = self.visit_typeSpec(None)
         if hasattr(ctx, "typeSpec") and callable(ctx.typeSpec):
             ts_ctx = ctx.typeSpec()
             if ts_ctx:
@@ -734,7 +751,7 @@ class ASTBuilder:
             location=self._loc(ctx),
             name=name,
             message_type=msg_type,
-            topic=topic,
+            topic=self._required(topic, ctx),
             qos=self._qos_from_constraints(constraints),
             constraints=constraints,
         )
@@ -767,7 +784,7 @@ class ASTBuilder:
             location=self._loc(ctx),
             name=name,
             message_type=msg_type,
-            topic=topic,
+            topic=self._required(topic, ctx),
             qos=self._qos_from_constraints(constraints),
             constraints=constraints,
         )
@@ -800,7 +817,7 @@ class ASTBuilder:
             location=self._loc(ctx),
             name=name,
             service_type=service_type,
-            service_name=service_name,
+            service_name=self._required(service_name, ctx),
             constraints=constraints,
         )
 
@@ -887,7 +904,7 @@ class ASTBuilder:
             if id_ctx:
                 name = self._get_text(id_ctx)
 
-        type_ = None
+        type_: nodes.Type = self.visit_typeSpec(None)
         if hasattr(ctx, "typeSpec") and callable(ctx.typeSpec):
             ts_ctx = ctx.typeSpec()
             if ts_ctx:
@@ -988,7 +1005,7 @@ class ASTBuilder:
             if id_ctx:
                 name = self._get_text(id_ctx)
 
-        type_ = None
+        type_: nodes.Type = self.visit_typeSpec(None)
         if hasattr(ctx, "typeSpec") and callable(ctx.typeSpec):
             ts_ctx = ctx.typeSpec()
             if ts_ctx:
@@ -1034,7 +1051,9 @@ class ASTBuilder:
                     if ni:
                         nodes_list.append(ni)
 
-        return nodes.GroupDecl(location=self._loc(ctx), name=name, namespace=namespace, nodes=nodes_list)
+        return nodes.GroupDecl(
+            location=self._loc(ctx), name=name, namespace=self._required(namespace, ctx), nodes=nodes_list
+        )
 
     def visit_NodeInstance(self, ctx) -> nodes.NodeInstance:
         """Visit node instance: lidar: LidarProcessor { ... }"""
@@ -1113,7 +1132,10 @@ class ASTBuilder:
                         components.append(comp)
 
         return nodes.ContainerDecl(
-            location=self._loc(ctx), name=name, container_name=container_name, components=components
+            location=self._loc(ctx),
+            name=name,
+            container_name=self._required(container_name, ctx),
+            components=components,
         )
 
     def visit_ComponentInstance(self, ctx) -> nodes.ComponentInstance:

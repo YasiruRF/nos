@@ -1,10 +1,7 @@
 """Unit tests for code generation and launch transpilation."""
 
-import pytest
-
 from nos.ast.nodes import (
     ActionDecl,
-    BinaryExpression,
     ComponentInstance,
     ContainerDecl,
     GroupDecl,
@@ -16,13 +13,12 @@ from nos.ast.nodes import (
     ParameterDecl,
     PrimitiveType,
     PrimitiveTypeKind,
-    PublicationDecl,
     QualifiedType,
     SourceLocation,
     SubscriptionDecl,
 )
 from nos.codegen import GenerationOutput, LaunchTranspiler, PythonGenerator
-from nos.semantic import SemanticAnalyzer, SymbolTable
+from nos.semantic import SymbolTable
 
 
 class TestPythonGenerator:
@@ -285,7 +281,7 @@ class TestLaunchTranspiler:
         output = trans.generate(launch, st)
 
         code = output.files["sub_launch_launch.py"]
-        import_line = next(l for l in code.splitlines() if l.startswith("from launch.substitutions import"))
+        import_line = next(ln for ln in code.splitlines() if ln.startswith("from launch.substitutions import"))
         for name in ("LaunchConfiguration", "PathJoinSubstitution", "Command"):
             assert name in import_line
         assert "from launch_ros.substitutions import FindPackageShare" in code

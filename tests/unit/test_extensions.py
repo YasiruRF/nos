@@ -1,7 +1,6 @@
 """Source extension policy: .node only, .nos rejected (#7)."""
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest

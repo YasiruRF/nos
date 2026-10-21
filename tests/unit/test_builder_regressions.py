@@ -1,7 +1,5 @@
 """Regression tests for AST builder crashes (#13, #14)."""
 
-import pytest
-
 from nos.ast import nodes
 from nos.compiler.pipeline import CompilerPipeline
 
