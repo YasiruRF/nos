@@ -245,10 +245,17 @@ class PythonGenerator(CodeGenerator):
 
         for param in node.parameters:
             if isinstance(param.type, nodes.StructType):
-                # Flattened properties for struct fields, plus one for the whole struct
+                # Flattened properties for struct fields, plus a dict for the whole struct
                 for field in param.type.fields:
                     prop(f"{param.name}_{field.name}", f"{param.name}.{field.name}")
-            prop(param.name, param.name)
+                items = ", ".join(f"'{f.name}': self.{self._escape_identifier(param.name + '_' + f.name)}"
+                                  for f in param.type.fields)
+                lines.append("    @property")
+                lines.append(f"    def {self._escape_identifier(param.name)}(self):")
+                lines.append(f"        return {{{items}}}")
+                lines.append("")
+            else:
+                prop(param.name, param.name)
 
         return "\n".join(lines)
 
@@ -290,10 +297,12 @@ class PythonGenerator(CodeGenerator):
                 for field in param.type.fields:
                     param_name = f"{param.name}.{field.name}"
                     default_value = "None"
-                    
-                    if param.default_value and isinstance(param.default_value, nodes.StructInitializerExpression):
-                        if field.name in param.default_value.fields:
-                            default_value = self._expression_to_python(param.default_value.fields[field.name])
+                    initializer = param.default_value
+                    if isinstance(initializer, nodes.StructInitializerExpression) \
+                            and field.name in initializer.fields:
+                        default_value = self._expression_to_python(initializer.fields[field.name])
+                    elif field.default_value is not None:
+                        default_value = self._expression_to_python(field.default_value)
                     
                     lines.append(f"        self.declare_parameter('{param_name}', {default_value})")
             else:
@@ -316,7 +325,10 @@ class PythonGenerator(CodeGenerator):
         is_float = self._get_python_type(param.type) == "float"
 
         for constraint in param.constraints:
-            if constraint.name == "range" and len(constraint.arguments) >= 2:
+            if constraint.name == "description" and constraint.arguments:
+                descriptor_parts.append(
+                    f"description={self._expression_to_python(constraint.arguments[0])}")
+            elif constraint.name == "range" and len(constraint.arguments) >= 2:
                 min_val = self._expression_to_python(constraint.arguments[0])
                 max_val = self._expression_to_python(constraint.arguments[1])
                 if is_float:
@@ -729,17 +741,64 @@ class PythonGenerator(CodeGenerator):
 
         return wrapped
 
+    _INTERPOLATION = re.compile(r'\$\{([a-zA-Z0-9_\.]+)\}')
+
     def _interpolate_nos_parameters(self, body: str) -> str:
-        """Replace NOS parameter interpolation ${...} with self.property_name."""
-        # Match ${param.field} or ${param}
-        pattern = r'\$\{([a-zA-Z0-9_\.]+)\}'
-        
-        def replace_param(match):
-            param_path = match.group(1)
-            # Convert param.field to param_field for property access
-            return f"self.{self._escape_identifier(param_path.replace('.', '_'))}"
-            
-        return re.sub(pattern, replace_param, body)
+        """Replace NOS parameter interpolation ``${param}`` / ``${param.field}``.
+
+        Outside string literals it becomes ``self.param`` / ``self.param_field``.
+        Inside an f-string it becomes a replacement field (``{self.param}``),
+        so ``f"rate ${rate}"`` works.  In a plain string it is left untouched.
+        """
+        def prop(path: str) -> str:
+            return f"self.{self._escape_identifier(path.replace('.', '_'))}"
+
+        out = []
+        i, n = 0, len(body)
+        while i < n:
+            ch = body[i]
+
+            if ch == '#':  # comment: copy to end of line
+                end = body.find('\n', i)
+                end = n if end == -1 else end
+                out.append(body[i:end])
+                i = end
+                continue
+
+            if ch in '"\'':
+                # string literal; its prefix (f, r, b, ...) was already copied to `out`
+                prefix = re.search(r'(?<![\w])([rRbBfFuU]{1,2})$', ''.join(out[-3:]))
+                is_f = bool(prefix and 'f' in prefix.group(1).lower())
+                quote = body[i:i + 3] if body[i:i + 3] in ('"""', "'''") else ch
+                j = i + len(quote)
+                chunk = [quote]
+                while j < n and not body.startswith(quote, j):
+                    if body[j] == '\\' and j + 1 < n:
+                        chunk.append(body[j:j + 2])
+                        j += 2
+                        continue
+                    match = self._INTERPOLATION.match(body, j)
+                    if match and is_f:
+                        chunk.append('{' + prop(match.group(1)) + '}')
+                        j = match.end()
+                        continue
+                    chunk.append(body[j])
+                    j += 1
+                chunk.append(body[j:j + len(quote)])
+                out.append(''.join(chunk))
+                i = j + len(quote)
+                continue
+
+            match = self._INTERPOLATION.match(body, i)
+            if match:
+                out.append(prop(match.group(1)))
+                i = match.end()
+                continue
+
+            out.append(ch)
+            i += 1
+
+        return ''.join(out)
 
     def _generate_lifecycle_methods(self, node: nodes.NodeDecl) -> str:
         """Generate the lifecycle hooks that need node-specific code.

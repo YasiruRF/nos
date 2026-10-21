@@ -145,6 +145,7 @@ class SemanticAnalyzer(ASTVisitor):
         self._collect_packages(ast)
 
         self._reject_interface_declarations(ast)
+        self._warn_ungenerated_features(ast)
 
         # Pass 1: Build symbol table
         self._build_symbols(ast)
@@ -173,6 +174,27 @@ class SemanticAnalyzer(ASTVisitor):
             self.known_packages.add(parts[0])
             if len(parts) >= 2:
                 self.imported_types[imp.alias or parts[-1]] = (parts[0], parts[-1])
+
+    def _warn_ungenerated_features(self, ast: nodes.ASTNode):
+        """Parsed constructs that no generator emits yet."""
+        if not isinstance(ast, nodes.File):
+            return
+        for decl in ast.declarations:
+            if isinstance(decl, nodes.NodeDecl):
+                for comp in decl.components:
+                    self._add_warning(
+                        f"Component '{comp.name}' is parsed but not generated yet",
+                        comp.location, "W025")
+            elif isinstance(decl, nodes.LaunchDecl):
+                for event in decl.events:
+                    self._add_warning(
+                        f"Launch event handler on \"{event.trigger}\" is parsed but not generated yet",
+                        event.location, "W023")
+                if decl.lifecycle_manager and decl.lifecycle_manager.transitions:
+                    self._add_warning(
+                        "Lifecycle manager transitions are not generated; "
+                        "nav2_lifecycle_manager configures and activates the managed nodes itself",
+                        decl.lifecycle_manager.location, "W024")
 
     def _reject_interface_declarations(self, ast: nodes.ASTNode):
         """Interface declarations parse but nothing generates .msg/.srv/.action yet."""

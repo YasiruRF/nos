@@ -357,8 +357,15 @@ class ASTBuilder:
     # ==========================================================================
 
     def visit_expression(self, ctx) -> nodes.Expression:
-        """Visit root expression (delegates to labeled sub-visitors)."""
-        return self.visit_children(ctx)[0] if ctx and ctx.children else None
+        """Visit an expression.
+
+        Every alternative of the ``expression`` rule is labeled in the grammar,
+        so ``ctx`` is a labeled subclass (``AdditiveExprContext``, ...) and is
+        dispatched to its own ``visit_<Label>`` method.
+        """
+        if ctx is None or not ctx.children:
+            return None
+        return self.visit(ctx)
 
     visit_Expression = visit_expression
 
@@ -554,6 +561,18 @@ class ASTBuilder:
                 literal_type="bool"
             )
 
+        if hasattr(ctx, 'LBRACKET') and ctx.LBRACKET() is not None:
+            el_ctx = ctx.expressionList()
+            elements = [self.visit_expression(e) for e in (el_ctx.expression() if el_ctx else [])]
+            return nodes.ArrayExpression(location=self._loc(ctx), elements=elements)
+
+        if hasattr(ctx, 'STRUCT') and ctx.STRUCT() is not None:
+            fields = {}
+            for init in ctx.fieldInitializer() or []:
+                fields[self._get_text(init.identifier())] = self.visit_expression(init.expression())
+            return nodes.StructInitializerExpression(location=self._loc(ctx), fields=fields)
+
+        self._fallback(ctx, f"unrecognised literal {text!r}")
         return nodes.LiteralExpression(
             location=self._loc(ctx),
             value=text,
@@ -924,35 +943,18 @@ class ASTBuilder:
 
     def visit_ComponentDecl(self, ctx) -> nodes.ComponentDecl:
         """Visit component declaration: filter: PointCloudFilter { ... }"""
-        name = ""
-        if hasattr(ctx, 'identifier') and callable(ctx.identifier):
-            id_ctx = ctx.identifier()
-            if id_ctx:
-                name = self._get_text(id_ctx)
-
-        component_type = ""
-        # Component type might be another identifier or qualified identifier
-        if hasattr(ctx, 'children') and ctx.children:
-            for child in ctx.children:
-                if 'identifier' in child.__class__.__name__.lower():
-                    text = self._get_text(child)
-                    if text and text != name:
-                        component_type = text
-                        break
+        ids = ctx.identifier()
+        ids = ids if isinstance(ids, list) else [ids]
+        name = self._get_text(ids[0]) if ids else ""
+        component_type = self._get_text(ids[1]) if len(ids) > 1 else ""
 
         params = {}
-        if hasattr(ctx, 'parameterOverride') and callable(ctx.parameterOverride):
-            for po_ctx in ctx.parameterOverride():
-                if po_ctx and hasattr(po_ctx, 'identifier') and callable(po_ctx.identifier):
-                    key_ctx = po_ctx.identifier()
-                    if key_ctx:
-                        key = self._get_text(key_ctx)
-                        if hasattr(po_ctx, 'expression') and callable(po_ctx.expression):
-                            val_ctx = po_ctx.expression()
-                            if val_ctx:
-                                val = self.visit_expression(val_ctx)
-                                if val:
-                                    params[key] = val
+        for po_ctx in ctx.parameterOverride() or []:
+            key_ctx, val_ctx = po_ctx.identifier(), po_ctx.expression()
+            if key_ctx is not None and val_ctx is not None:
+                val = self.visit_expression(val_ctx)
+                if val:
+                    params[self._get_text(key_ctx)] = val
 
         return nodes.ComponentDecl(
             location=self._loc(ctx),
@@ -1203,11 +1205,30 @@ class ASTBuilder:
                                         if val:
                                             params[key] = val
 
+        remaps: Dict[str, str] = {}
+        for config in ctx.nodeConfig() or []:
+            for remap in (config.remapDecl() or []):
+                source, target = remap.identifier(), remap.STRING_LITERAL()
+                if source is not None and target is not None:
+                    remaps[self._get_text(source)] = self._strip_quotes(target.getText())
+
+        constraints = []
+        for c_ctx in ctx.constraint() or []:
+            c = self.visit(c_ctx)
+            if c:
+                constraints.append(c)
+
+        # `@when(expr)` makes the node conditional on a launch argument
+        condition = next((c.arguments[0] for c in constraints
+                          if c.name == "when" and c.arguments), None)
+
         return nodes.NodeInstance(
             location=self._loc(ctx),
             name=name,
             node_type=node_type,
-            parameters=params
+            parameters=params,
+            remaps=remaps,
+            condition=condition
         )
 
     def visit_ContainerDecl(self, ctx) -> nodes.ContainerDecl:
@@ -1308,12 +1329,12 @@ class ASTBuilder:
         )
 
     def visit_LifecycleManagerDecl(self, ctx) -> nodes.LifecycleManagerDecl:
-        """Visit lifecycle manager declaration."""
+        """Visit lifecycle manager declaration: ``lifecycle manager <Name> { ... }``."""
         name = ""
-        if hasattr(ctx, 'identifier') and callable(ctx.identifier):
-            id_ctx = ctx.identifier()
-            if id_ctx:
-                name = self._get_text(id_ctx)
+        ids = ctx.identifier() if hasattr(ctx, 'identifier') and callable(ctx.identifier) else []
+        if ids:
+            # the rule is `LIFECYCLE identifier identifier`: the last one names the manager
+            name = self._get_text(ids[-1] if isinstance(ids, list) else ids)
 
         managed_nodes = []
         if hasattr(ctx, 'managesBlock') and callable(ctx.managesBlock):

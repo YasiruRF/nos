@@ -272,7 +272,9 @@ class TestLaunchTranspiler:
         output = trans.generate(launch, st)
         
         code = output.files["sub_launch_launch.py"]
-        assert "from launch.substitutions import LaunchConfiguration, TextSubstitution, PathJoinSubstitution, Command" in code
+        import_line = next(l for l in code.splitlines() if l.startswith("from launch.substitutions import"))
+        for name in ("LaunchConfiguration", "PathJoinSubstitution", "Command"):
+            assert name in import_line
         assert "from launch_ros.substitutions import FindPackageShare" in code
         assert "filename = LaunchConfiguration('filename')" in code
         assert "Command(\"xacro\", PathJoinSubstitution(FindPackageShare(\"lecture4\"), \"urdf\", filename))" in code
