@@ -3,10 +3,12 @@
 Generates ROS2 Python nodes from NOS AST.
 """
 
+import io
 import keyword
 import logging
 import re
 import textwrap
+import tokenize
 from typing import Dict, Any, List, Optional, Set
 
 from .generator import CodeGenerator, GenerationOutput
@@ -545,7 +547,7 @@ class PythonGenerator(CodeGenerator):
                 # We strip leading/trailing newlines but KEEP leading spaces on the first line
                 # so that textwrap.dedent can work correctly.
                 cleaned_body = body.strip('\r\n')
-                cleaned_body = textwrap.dedent(cleaned_body)
+                cleaned_body = self._dedent_code(cleaned_body)
                 
                 # Interpolate NOS parameters BEFORE validation
                 # so that the code is valid Python syntax.
@@ -631,6 +633,51 @@ class PythonGenerator(CodeGenerator):
 
         return "\n".join(callbacks)
 
+    def _string_continuation_lines(self, code: str) -> Optional[Set[int]]:
+        """0-based indexes of lines that start inside a multi-line string literal.
+
+        Returns None if the code cannot be tokenized.
+        """
+        protected: Set[int] = set()
+        try:
+            for tok in tokenize.generate_tokens(io.StringIO(code).readline):
+                if tok.type in (tokenize.STRING, getattr(tokenize, "FSTRING_MIDDLE", -1)) \
+                        and tok.end[0] > tok.start[0]:
+                    protected.update(range(tok.start[0], tok.end[0]))  # rows are 1-based
+        except (tokenize.TokenError, IndentationError, SyntaxError):
+            return None
+        return protected
+
+    def _dedent_code(self, code: str) -> str:
+        """Remove the common indentation, ignoring lines inside multi-line strings."""
+        protected = self._string_continuation_lines(textwrap.dedent(code))
+        if not protected:
+            return textwrap.dedent(code)
+
+        lines = code.split("\n")
+        margins = [
+            len(line) - len(line.lstrip())
+            for i, line in enumerate(lines)
+            if line.strip() and i not in protected
+        ]
+        margin = min(margins, default=0)
+        return "\n".join(
+            line if i in protected else line[margin:]
+            for i, line in enumerate(lines)
+        )
+
+    def _indent_code(self, code: str, level: int) -> str:
+        """Indent Python source without touching the contents of multi-line strings."""
+        protected = self._string_continuation_lines(code)
+        if protected is None:
+            return self._indent(code, level)
+
+        pad = "    " * level
+        return "\n".join(
+            line if (i in protected or not line.strip()) else pad + line
+            for i, line in enumerate(code.split("\n"))
+        )
+
     def _wrap_code_in_try_except(self, body: str, callback_name: str) -> str:
         """Wrap callback body in try/except for runtime safety.
 
@@ -646,7 +693,7 @@ class PythonGenerator(CodeGenerator):
 
         # Indent the body content
         # Level 3 (12 spaces) to be nested inside 'try:' which is at level 2 (8 spaces)
-        indented_body = self._indent(body.strip(), 3)
+        indented_body = self._indent_code(body.strip(), 3)
 
         # Generate the wrapped code
         wrapped = f'''        try:
