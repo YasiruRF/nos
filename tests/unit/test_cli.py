@@ -39,9 +39,10 @@ class TestBasics:
         assert exc.value.code == 0
         assert nos.__version__ in capsys.readouterr().out
 
-    def test_setup_py_uses_package_version(self):
-        text = (Path(__file__).resolve().parents[2] / "setup.py").read_text()
-        assert "version=version" in text
+    def test_pyproject_uses_package_version(self):
+        text = (Path(__file__).resolve().parents[2] / "pyproject.toml").read_text()
+        assert 'version = { attr = "nos.__version__" }' in text
+        assert 'dynamic = ["version"]' in text
 
     def test_compile_valid_file(self, src, tmp_path):
         out = tmp_path / "out"
