@@ -1,0 +1,14 @@
+package demo_lc
+
+node Managed {
+  publications {
+    status: std_msgs::String @topic("/status")
+  }
+  lifecycle: managed
+  on_init -> {
+    self.get_logger().info("init")
+  }
+  on_shutdown -> {
+    self.get_logger().info("bye")
+  }
+}

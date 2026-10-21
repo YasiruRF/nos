@@ -1,0 +1,17 @@
+package demo_launch
+
+launch Bringup {
+  arguments {
+    speed: float = 1.5
+    name: string = "robot"
+  }
+  group sensors @namespace("sensors") {
+    lidar: LidarDriver {
+      parameters: { rate: 10 }
+    }
+  }
+  include "other.launch.py" {
+    args: { speed: 2 }
+  }
+  include "plain.launch.py" { }
+}
