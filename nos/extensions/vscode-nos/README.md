@@ -1,6 +1,6 @@
 # NOS Language Support for VS Code
 
-This extension provides syntax highlighting and bracket matching support for the Node Orchestration System (NOS) DSL files (`.nos`, `.node`, `.interface`).
+This extension provides syntax highlighting and bracket matching support for the Node Orchestration System (NOS) DSL files (`.node`, `.interface`).
 
 ## Features
 
@@ -17,4 +17,4 @@ To load the extension locally into your VS Code instance:
    ln -s "/media/yasiru/New Volume/Praxis/NOS/nos/extensions/vscode-nos" ~/.vscode/extensions/vscode-nos
    ```
 2. Restart VS Code.
-3. Open any `.nos` file to see the highlighting active!
+3. Open any `.node` file to see the highlighting active!

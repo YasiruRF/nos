@@ -1,0 +1,71 @@
+package full version "2.0.1" depends: ["nav2_msgs", "example_interfaces"]
+import nav2_msgs::NavigateToPose as Nav
+import example_interfaces::AddTwoInts
+
+node Planner {
+  parameters {
+    rate: float = 5.0 @range(0.5, 20.0) @description("loop rate")
+    frame: string = "map"
+    enabled: bool = true
+    limits: struct { vmax: float = 1.0  vmin: float = 0.0 }
+    timeout: duration = 2.5s
+    gains: list<float> = [1.0, 2.0]
+  }
+  subscriptions {
+    odom: nav_msgs::Odometry @topic("/odom") @qos(reliability="best_effort", depth=5) @reentrant
+  }
+  publications {
+    path: nav_msgs::Path @topic("/plan") @qos(durability="transient_local", history="keep_last", depth=1)
+  }
+  services {
+    add: AddTwoInts @service("/add")
+    add_client: AddTwoInts @service("/add2") @client
+  }
+  actions {
+    goto: Nav
+    goto_client: Nav @client
+  }
+  lifecycle: managed
+  components {
+    helper: Helper { gain: 2 }
+  }
+  on_init -> {
+    self.get_logger().info(f"rate ${rate} vmax ${limits.vmax}")
+  }
+  on_parameter_change(name: string) -> {
+    pass
+  }
+  on tick(count: int, ratio: float) -> {
+    if count > 3:
+        self.get_logger().info("many")
+  }
+  on_shutdown -> {
+    pass
+  }
+}
+
+launch Bringup {
+  arguments {
+    speed: float = 1.5
+    use_sim: bool = false
+    label: string = "robot"
+  }
+  group base @namespace("base") {
+    planner: Planner {
+      parameters: { rate: 10  frame: "odom" }
+      remap: { odom -> "/base/odom" }
+    }
+    other: Planner { parameters: { rate: speed } } @when(use_sim)
+  }
+  container comps @container("comps_container") {
+    helper: Helper @load_component
+  }
+  include "other.launch.py" { args: { speed: 2  label: "x" } }
+  lifecycle mgr manager {
+    manages: [planner, other]
+    transitions: {
+      { from: unconfigured, to: configured }
+    }
+  }
+  on "start" { planner.enabled = true }
+}

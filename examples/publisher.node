@@ -1,0 +1,15 @@
+package demo_pub
+
+node Talker {
+  parameters {
+    rate: float = 2.0 @range(0.1, 10.0)
+    greeting: string = "hello"
+    retries: int = 3 @range(0, 10)
+  }
+  publications {
+    chatter: std_msgs::String @topic("/chatter")
+  }
+  on_init -> {
+    self.get_logger().info("talker up")
+  }
+}

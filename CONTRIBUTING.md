@@ -16,7 +16,7 @@ Thank you for your interest in contributing to NOS (Node Orchestration System)! 
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.9 or higher (CI runs 3.9-3.13)
 - pip (Python package manager)
 - Git
 
@@ -24,7 +24,7 @@ Thank you for your interest in contributing to NOS (Node Orchestration System)! 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-org/nos.git
+   git clone https://github.com/YasiruRF/nos.git
    cd nos
    ```
 
@@ -44,6 +44,30 @@ Thank you for your interest in contributing to NOS (Node Orchestration System)! 
    nos --version
    pytest --version
    ```
+
+### Working on Windows / exFAT / NTFS mounts
+
+Such mounts report every file as executable, so `git status` shows dozens of
+"modified" files whose only change is the mode (`100644 -> 100755`). Ignore the mode
+bits locally:
+
+```bash
+git config core.fileMode false
+```
+
+The repository itself stores plain `100644` modes; `.gitattributes` keeps line endings
+as LF so the golden-file tests behave the same everywhere.
+
+### Examples and golden files
+
+Sample programs live in `examples/` and double as test fixtures; the expected generated
+code is committed under `tests/golden/`. Refresh it after an intentional generator change:
+
+```bash
+NOS_UPDATE_GOLDEN=1 pytest tests/integration/test_golden.py
+```
+
+Keep build output (`ros2_ws/{build,install,log}`, `generated/`) out of the tree; it is ignored.
 
 ### ANTLR4 Grammar (Optional)
 
@@ -92,6 +116,19 @@ tests/                # Test suite
 ```bash
 pytest
 ```
+
+### Running tests in a shell where ROS 2 is sourced
+
+A sourced ROS 2 environment puts its own pytest plugins on the path (`launch_testing`, ...),
+and they fail to import without extra packages. Either run the tests in a shell where ROS is
+not sourced, or disable plugin autoloading:
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest
+```
+
+The suite does not need ROS: `tests/fake_rclpy.py` stands in for `rclpy`. The `ros` job in
+`.github/workflows/ci.yml` additionally runs it inside a `ros:humble` container.
 
 ### Run with Coverage
 
@@ -310,7 +347,7 @@ in generated Python code.
 
 ### Security Issues
 
-Please do not report security issues publicly. Email security concerns to: security@your-org.com
+Please do not report security issues publicly. Report them privately through GitHub: https://github.com/YasiruRF/nos/security/advisories/new
 
 ### Bug Reports
 
@@ -388,6 +425,6 @@ Releases follow Semantic Versioning:
 Join our community discussions:
 - GitHub Discussions: [link]
 - Discord: [link]
-- Email: maintainers@your-org.com
+- Email: the maintainers via a GitHub issue or discussion
 
 Thank you for contributing to NOS!

@@ -19,7 +19,6 @@
                     "nos"
                 ],
                 "extensions": [
-                    ".nos",
                     ".node",
                     ".interface"
                 ],

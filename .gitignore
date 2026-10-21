@@ -130,15 +130,10 @@ dmypy.json
 
 # ANTLR4 generated files (if .g4 sources are present)
 # Note: We commit the generated Python files for convenience
-# Uncomment if you prefer to regenerate during build:
-# flowlang/grammar/*.py
-# flowlang/grammar/*.tokens
-# flowlang/grammar/*.interp
 
-# FlowLang specific
+# NOS generated output and caches
 generated/
-*.flowc
-*.flowlang-cache/
+.nos_build_cache.json
 
 # ROS2 specific
 install/

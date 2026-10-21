@@ -1,0 +1,20 @@
+package demo_comm
+depends: ["example_interfaces"]
+
+node Worker {
+  subscriptions {
+    scan: sensor_msgs::LaserScan @topic("/scan") @qos(depth=5)
+  }
+  publications {
+    cmd: geometry_msgs::Twist @topic("/cmd_vel")
+  }
+  services {
+    trigger: std_srvs::Trigger @service("/trigger")
+  }
+  actions {
+    fib: example_interfaces::Fibonacci
+  }
+  on scan_received(msg: sensor_msgs::LaserScan) -> {
+    self.get_logger().info("got scan")
+  }
+}

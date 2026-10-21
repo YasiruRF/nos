@@ -1,1 +1,4 @@
+include LICENSE README.md CHANGELOG.md
 recursive-include nos/extensions/vscode-nos *
+recursive-include nos/grammar *.g4
+include nos/codeblock/static/*.html

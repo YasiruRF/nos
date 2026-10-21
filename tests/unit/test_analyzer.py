@@ -1,14 +1,15 @@
 """Unit tests for the semantic analyzer and symbol table."""
 
-import pytest
 from nos.ast.nodes import (
-    SourceLocation, NodeDecl, ParameterDecl, PrimitiveType, PrimitiveTypeKind,
-    PackageDecl, LiteralExpression, IdentifierExpression, LaunchDecl
+    LiteralExpression,
+    NodeDecl,
+    PackageDecl,
+    ParameterDecl,
+    PrimitiveType,
+    PrimitiveTypeKind,
+    SourceLocation,
 )
-from nos.semantic import (
-    SymbolTable, Scope, Symbol, SymbolType,
-    SemanticAnalyzer, Diagnostic, DiagnosticSeverity
-)
+from nos.semantic import Diagnostic, DiagnosticSeverity, Scope, SemanticAnalyzer, Symbol, SymbolTable, SymbolType
 
 
 class TestScope:
@@ -75,13 +76,8 @@ class TestSymbolTable:
 
     def test_define_and_lookup(self):
         st = SymbolTable()
-        loc = SourceLocation(1, 0, "test.nos")
-        symbol = Symbol(
-            name="my_param",
-            symbol_type=SymbolType.PARAMETER,
-            node=None,
-            scope=st.current_scope
-        )
+        SourceLocation(1, 0, "test.node")
+        symbol = Symbol(name="my_param", symbol_type=SymbolType.PARAMETER, node=None, scope=st.current_scope)
         st.define(symbol)
 
         found = st.lookup("my_param")
@@ -90,7 +86,7 @@ class TestSymbolTable:
 
     def test_find_by_type(self):
         st = SymbolTable()
-        loc = SourceLocation(1, 0, "test.nos")
+        SourceLocation(1, 0, "test.node")
 
         node_symbol = Symbol("Node1", SymbolType.NODE, None, st.current_scope)
         param_symbol = Symbol("param1", SymbolType.PARAMETER, None, st.current_scope)
@@ -104,7 +100,7 @@ class TestSymbolTable:
 
     def test_find_parameters(self):
         st = SymbolTable()
-        loc = SourceLocation(1, 0, "test.nos")
+        SourceLocation(1, 0, "test.node")
 
         node_scope = st.push_scope("MyNode", "node")
         param = Symbol("speed", SymbolType.PARAMETER, None, node_scope)
@@ -125,11 +121,8 @@ class TestSemanticAnalyzer:
 
     def test_analyze_empty_file(self):
         analyzer = SemanticAnalyzer()
-        loc = SourceLocation(1, 0, "test.nos")
-        file_node = PackageDecl(
-            location=loc,
-            name="test_pkg"
-        )
+        loc = SourceLocation(1, 0, "test.node")
+        file_node = PackageDecl(location=loc, name="test_pkg")
 
         result = analyzer.analyze(file_node)
         assert result.is_valid is True
@@ -137,13 +130,13 @@ class TestSemanticAnalyzer:
 
     def test_analyze_node_with_params(self):
         analyzer = SemanticAnalyzer()
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
 
         param = ParameterDecl(
             location=loc,
             name="frame_id",
             type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.STRING),
-            default_value=LiteralExpression(location=loc, value="base", literal_type="string")
+            default_value=LiteralExpression(location=loc, value="base", literal_type="string"),
         )
         node = NodeDecl(
             location=loc,
@@ -155,7 +148,7 @@ class TestSemanticAnalyzer:
             actions=[],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
 
         result = analyzer.analyze(node)
@@ -165,17 +158,13 @@ class TestSemanticAnalyzer:
 
     def test_duplicate_parameter_error(self):
         analyzer = SemanticAnalyzer()
-        loc = SourceLocation(1, 0, "test.nos")
+        loc = SourceLocation(1, 0, "test.node")
 
         param1 = ParameterDecl(
-            location=loc,
-            name="speed",
-            type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.FLOAT)
+            location=loc, name="speed", type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.FLOAT)
         )
         param2 = ParameterDecl(
-            location=loc,
-            name="speed",  # Duplicate
-            type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.FLOAT)
+            location=loc, name="speed", type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.FLOAT)  # Duplicate
         )
         node = NodeDecl(
             location=loc,
@@ -187,7 +176,7 @@ class TestSemanticAnalyzer:
             actions=[],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
 
         result = analyzer.analyze(node)
@@ -198,23 +187,14 @@ class TestDiagnostics:
     """Tests for Diagnostic class."""
 
     def test_error_diagnostic(self):
-        loc = SourceLocation(10, 5, "test.nos")
-        diag = Diagnostic(
-            severity=DiagnosticSeverity.ERROR,
-            message="Undefined variable",
-            location=loc,
-            code="E001"
-        )
+        loc = SourceLocation(10, 5, "test.node")
+        diag = Diagnostic(severity=DiagnosticSeverity.ERROR, message="Undefined variable", location=loc, code="E001")
         assert diag.severity == DiagnosticSeverity.ERROR
-        assert str(diag) == "test.nos:10:5: ERROR: Undefined variable"
+        assert str(diag) == "test.node:10:5: ERROR: Undefined variable"
 
     def test_warning_diagnostic(self):
-        loc = SourceLocation(5, 0, "test.nos")
-        diag = Diagnostic(
-            severity=DiagnosticSeverity.WARNING,
-            message="Unused variable",
-            location=loc
-        )
+        loc = SourceLocation(5, 0, "test.node")
+        diag = Diagnostic(severity=DiagnosticSeverity.WARNING, message="Unused variable", location=loc)
         assert diag.severity == DiagnosticSeverity.WARNING
 
 

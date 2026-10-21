@@ -1,0 +1,9 @@
+# Generated code is compared byte for byte by the golden tests: keep LF on every platform.
+*.py text eol=lf
+*.node text eol=lf
+*.golden text eol=lf
+*.interface text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.g4 text eol=lf

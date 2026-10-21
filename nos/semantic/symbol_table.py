@@ -5,12 +5,13 @@ supporting nested scopes for packages, nodes, and callbacks.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
 from enum import Enum, auto
+from typing import Any, Dict, List, Optional
 
 
 class SymbolType(Enum):
     """Types of symbols in the symbol table."""
+
     PACKAGE = auto()
     NODE = auto()
     PARAMETER = auto()
@@ -38,10 +39,11 @@ class Symbol:
         type_info: Optional type information
         is_exported: Whether this symbol is visible outside its scope
     """
+
     name: str
     symbol_type: SymbolType
     node: Any  # ASTNode
-    scope: 'Scope'
+    scope: "Scope"
     type_info: Optional[Any] = None
     is_exported: bool = False
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -52,9 +54,7 @@ class Symbol:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Symbol):
             return NotImplemented
-        return (self.name == other.name and
-                self.scope.name == other.scope.name and
-                self.node is other.node)
+        return self.name == other.name and self.scope.name == other.scope.name and self.node is other.node
 
 
 class Scope:
@@ -64,13 +64,12 @@ class Scope:
     lexical scope resolution.
     """
 
-    def __init__(self, name: str, parent: Optional['Scope'] = None,
-                 scope_type: str = "block"):
+    def __init__(self, name: str, parent: Optional["Scope"] = None, scope_type: str = "block"):
         self.name = name
         self.parent = parent
         self.scope_type = scope_type
         self.symbols: Dict[str, Symbol] = {}
-        self.children: List['Scope'] = []
+        self.children: List["Scope"] = []
         if parent:
             parent.children.append(self)
 
@@ -219,8 +218,7 @@ class SymbolTable:
         """Find all parameter symbols, optionally filtered by node."""
         params = self.find_by_type(SymbolType.PARAMETER)
         if node_name:
-            params = [p for p in params
-                     if p.scope.name == node_name]
+            params = [p for p in params if p.scope.name == node_name]
         return params
 
     def __repr__(self) -> str:

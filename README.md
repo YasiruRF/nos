@@ -41,7 +41,7 @@ For detailed status on implementation, testing, and roadmap, see [progress.md](p
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-org/nos.git
+   git clone https://github.com/YasiruRF/nos.git
    cd nos
    ```
 
@@ -72,7 +72,7 @@ NOS allows you to define, compile, and run ROS2 nodes directly.
 
 ### 1. Create `circle.node`
 
-```nos
+```node
 package turtlesim_example
 version "0.1.0"
 depends: ["rclpy", "geometry_msgs"]
@@ -131,52 +131,75 @@ tests/                # Test suite
 
 ## File Extensions
 
-- `.nos` - System definition files (packages, imports, launch declarations)
-- `.node` - Node component definitions
-- `.interface` - Message/service/action interface definitions
+- `.node` - NOS source files: packages, imports, node definitions and launch declarations
+- `.interface` - Message/service/action interface definitions (parsed, but not yet compiled: see the compiler diagnostics)
+
+The legacy `.nos` extension is no longer accepted; rename such files to `.node`.
 
 ## Key Features
 
 ### 1. Declarative Parameters
 
-```nos
-parameters {
-    max_velocity: float = 1.0 @range(0.0, 5.0) @unit("m/s")
-    enable_filter: bool = true
+```node
+package demo
+
+node Filter {
+    parameters {
+        max_velocity: float = 1.0 @range(0.0, 5.0) @description("m/s")
+        enable_filter: bool = true
+    }
 }
 ```
 
 ### 2. Type-Safe Topics
 
-```nos
-subscriptions {
-    scan: sensor_msgs::LaserScan @topic("/scan")
-}
+```node
+package demo
 
-publications {
-    processed: sensor_msgs::LaserScan @topic("/processed")
+node Filter {
+    subscriptions {
+        scan: sensor_msgs::LaserScan @topic("/scan") @qos(reliability="best_effort", depth=5)
+    }
+
+    publications {
+        processed: sensor_msgs::LaserScan @topic("/processed")
+    }
 }
 ```
 
 ### 3. Launch File Generation
 
-```nos
+```node
+package demo
+
 launch NavigationStack {
+    arguments {
+        rate: float = 10.0
+    }
+
     group sensors @namespace("sensors") {
-        lidar: LidarDriver { ... }
-        camera: CameraDriver { ... }
+        lidar: LidarDriver {
+            parameters: { rate: rate }
+        }
+        camera: CameraDriver { }
     }
 }
 ```
 
 ### 4. Lifecycle Integration
 
-```nos
+```node
+package demo
+
 node MyNode {
     lifecycle: managed  # Enables lifecycle management
-    
-    on_init { ... }
-    on_shutdown { ... }
+
+    on_init -> {
+        self.get_logger().info("created")
+    }
+    on_shutdown -> {
+        self.get_logger().info("shutting down")
+    }
 }
 ```
 
@@ -223,7 +246,7 @@ nos input.node -v
 nos input.node --dry-run
 
 # Multiple files
-nos file1.node file2.nos -o generated/
+nos file1.node file2.node -o generated/
 
 # Show version
 nos --version
@@ -268,7 +291,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 - [x] Python code generator
 - [x] Launch file transpiler
 - [x] Runtime library
-- [x] Security validation
+- [x] Security validation of embedded Python (a guard rail, not a sandbox: see [docs/security.md](docs/security.md))
 - [x] Callback syntax & custom events (Issue #6)
 
 ### Phase 2: Extended Features (Planned)

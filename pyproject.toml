@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nos"
+dynamic = ["version"]
+description = "Node Orchestration System (NOS) - A declarative DSL for ROS2 robotics"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "NOS Team" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Compilers",
+]
+dependencies = [
+    "antlr4-python3-runtime>=4.13.0,<4.14",
+    "jinja2>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+    "black>=22.0.0",
+    "isort>=5.0.0",
+    "mypy>=0.950",
+    "flake8>=4.0.0",
+    "pyflakes>=3.0.0",
+    "build",
+    "twine",
+]
+
+[project.scripts]
+nos = "nos.compiler.main:main"
+nos-codeblock = "nos.codeblock.main:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "nos.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["nos*"]
+
+[tool.setuptools.package-data]
+"nos.grammar" = ["*.g4"]
+"nos.codeblock" = ["static/*.html"]
+nos = [
+    "extensions/vscode-nos/*",
+    "extensions/vscode-nos/syntaxes/*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: imports/runs generated code against a fake rclpy (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["nos"]
+omit = ["nos/grammar/*"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]
+
+[tool.black]
+line-length = 120
+target-version = ["py39"]
+extend-exclude = "nos/grammar/"
+
+[tool.isort]
+profile = "black"
+line_length = 120
+extend_skip = ["nos/grammar"]
+
+[tool.mypy]
+ignore_missing_imports = true
+exclude = ["nos/grammar/"]
+
+[[tool.mypy.overrides]]
+module = "nos.grammar.*"
+ignore_errors = true
