@@ -1,5 +1,10 @@
 ﻿# ROS2 DSL Architecture: Node Orchestration System (NOS)
 
+> **Status: design document.** It describes the target architecture; parts of the syntax and
+> tooling shown here (C++ generation, `ros2 nos ...`, RViz integration, ...) are not implemented.
+> The implemented language is described in the [README](README.md), `docs/` and the grammar in
+> `nos/grammar/`. Code blocks here are illustrative and are not compiled by the test suite.
+
 ## Executive Summary
 
 NOS (Node Orchestration System) is a declarative domain-specific language designed to address ROS2's verbosity and complexity challenges. It provides a unified syntax for defining robotics systems, generating optimized Python/C++ code while maintaining full compatibility with existing ROS2 tooling.
@@ -583,9 +588,9 @@ class LidarProcessorBase(NOSLifecycleNode):
         super().__init__(node_name)
         
         # Parameter declarations with descriptors
-        self._declare_flow_parameters()
+        self._declare_nos_parameters()
         
-    def _declare_flow_parameters(self):
+    def _declare_nos_parameters(self):
         self.declare_parameter('frame_id', 'laser_frame')
         self.declare_parameter('scan_topic', '/scan')
         self.declare_parameter('publish_rate', 10.0)
@@ -642,7 +647,7 @@ class LidarProcessor(LidarProcessorBase):
 
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
-#include <nos/runtime/flow_lifecycle_node.hpp>
+#include <nos/runtime/nos_lifecycle_node.hpp>
 
 namespace robot_navigation {
 
@@ -667,7 +672,7 @@ protected:
     virtual void on_shutdown() {}
     
 private:
-    void declare_flow_parameters();
+    void declare_nos_parameters();
     void setup_communications();
     
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
@@ -760,11 +765,11 @@ ros2 node list  # Shows NOS nodes
 ros2 topic list  # Shows NOS topics
 ros2 param list /lidar_processor  # Shows NOS parameters
 
-# NOS adds enhanced commands
-ros2 nos validate  # Validate .node files without building
-ros2 nos visualize launch navigation_stack.node  # Generate system diagram
-ros2 nos generate --target=cpp  # Trigger code generation
-ros2 nos debug /lidar_processor  # Enhanced debugging with source mapping
+# Planned (NOT implemented - there is no `ros2 nos` verb today; use the `nos` command)
+# ros2 nos validate  # Validate .node files without building      -> today: nos file.node --dry-run
+# ros2 nos visualize launch navigation_stack.node  # Generate system diagram
+# ros2 nos generate --target=cpp  # Trigger code generation
+# ros2 nos debug /lidar_processor  # Enhanced debugging with source mapping
 ```
 
 ### 4.2 RViz and Visualization Integration

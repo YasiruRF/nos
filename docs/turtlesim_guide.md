@@ -10,7 +10,7 @@ This guide demonstrates how to use NOS (Node Orchestration System) to control a 
 ## Example 1: Basic Motion (TurtleController)
 This node publishes velocity commands to make the turtle move in a circle.
 
-```nos
+```node
 package turtlesim_test
 version "0.1.0"
 depends: ["rclpy", "geometry_msgs"]
@@ -39,7 +39,7 @@ node TurtleController {
 ## Example 2: Boundary Guard (TurtleGuard)
 This node monitors the turtle's pose and forces it to stay within a central "safe zone" by reversing and turning when it hits a boundary.
 
-```nos
+```node
 package turtlesim_test
 version "0.1.0"
 depends: ["rclpy", "geometry_msgs", "turtlesim_msgs"]

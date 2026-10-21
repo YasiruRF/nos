@@ -24,7 +24,7 @@ Thank you for your interest in contributing to NOS (Node Orchestration System)! 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-org/nos.git
+   git clone https://github.com/YasiruRF/nos.git
    cd nos
    ```
 
@@ -323,7 +323,7 @@ in generated Python code.
 
 ### Security Issues
 
-Please do not report security issues publicly. Email security concerns to: security@your-org.com
+Please do not report security issues publicly. Report them privately through GitHub: https://github.com/YasiruRF/nos/security/advisories/new
 
 ### Bug Reports
 
@@ -401,6 +401,6 @@ Releases follow Semantic Versioning:
 Join our community discussions:
 - GitHub Discussions: [link]
 - Discord: [link]
-- Email: maintainers@your-org.com
+- Email: the maintainers via a GitHub issue or discussion
 
 Thank you for contributing to NOS!
