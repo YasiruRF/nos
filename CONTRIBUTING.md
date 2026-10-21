@@ -45,6 +45,30 @@ Thank you for your interest in contributing to NOS (Node Orchestration System)! 
    pytest --version
    ```
 
+### Working on Windows / exFAT / NTFS mounts
+
+Such mounts report every file as executable, so `git status` shows dozens of
+"modified" files whose only change is the mode (`100644 -> 100755`). Ignore the mode
+bits locally:
+
+```bash
+git config core.fileMode false
+```
+
+The repository itself stores plain `100644` modes; `.gitattributes` keeps line endings
+as LF so the golden-file tests behave the same everywhere.
+
+### Examples and golden files
+
+Sample programs live in `examples/` and double as test fixtures; the expected generated
+code is committed under `tests/golden/`. Refresh it after an intentional generator change:
+
+```bash
+NOS_UPDATE_GOLDEN=1 pytest tests/integration/test_golden.py
+```
+
+Keep build output (`ros2_ws/{build,install,log}`, `generated/`) out of the tree; it is ignored.
+
 ### ANTLR4 Grammar (Optional)
 
 If you need to modify the grammar:

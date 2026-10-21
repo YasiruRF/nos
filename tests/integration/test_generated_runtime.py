@@ -11,7 +11,7 @@ from tests import fake_rclpy
 
 pytestmark = pytest.mark.slow
 
-FIXTURES = Path(__file__).parent.parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parents[2] / "examples"
 
 
 @pytest.fixture

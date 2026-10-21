@@ -7,7 +7,7 @@ import pytest
 from nos.compiler.pipeline import CompilerPipeline
 from tests.helpers import assert_valid_python
 
-FIXTURES = sorted((Path(__file__).parent.parent / "fixtures").glob("*.node"))
+FIXTURES = sorted((Path(__file__).resolve().parents[2] / "examples").glob("*.node"))
 
 
 # Fixtures that still trip a known bug; remove the entry when the issue is fixed.

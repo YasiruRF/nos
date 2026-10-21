@@ -7,7 +7,7 @@ import pytest
 from nos.codegen import PythonGenerator
 from nos.compiler.pipeline import CompilerPipeline
 
-FIXTURES = Path(__file__).parent.parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parents[2] / "examples"
 
 
 def default_of(expr_source: str, type_name: str = "int") -> str:

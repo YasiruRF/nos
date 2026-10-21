@@ -14,7 +14,7 @@ import pytest
 
 from nos.compiler.pipeline import CompilerPipeline
 
-FIXTURES = Path(__file__).parent.parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parents[2] / "examples"
 GOLDEN = Path(__file__).parent.parent / "golden"
 PROGRAMS = sorted(p.stem for p in FIXTURES.glob("*.node"))
 
