@@ -4,8 +4,13 @@ This module provides the bridge between the ANTLR4 parser output
 and the strongly-typed AST node hierarchy.
 """
 
+import logging
 from typing import Optional, List, Dict, Any, Union
 from . import nodes
+
+logger = logging.getLogger(__name__)
+
+INTERFACE_KINDS = ("msg", "srv", "action")
 
 
 class ASTBuilder:
@@ -20,6 +25,17 @@ class ASTBuilder:
 
     def __init__(self, file_name: str = "<input>"):
         self.file_name = file_name
+        # User-facing problems found while building ("file:line:col: error: ...")
+        self.errors: List[str] = []
+
+    def _error(self, ctx, message: str) -> None:
+        """Record a source error at ``ctx``."""
+        loc = self._loc(ctx)
+        self.errors.append(f"{loc}: error: {message}")
+
+    def _fallback(self, ctx, message: str) -> None:
+        """Log (at debug level) that the builder substituted a default."""
+        logger.debug("%s: %s", self._loc(ctx), message)
 
     def _loc(self, ctx) -> nodes.SourceLocation:
         """Create source location from ANTLR context."""
@@ -42,6 +58,7 @@ class ASTBuilder:
 
     def visit_default(self, ctx) -> None:
         """Default handler for unvisited nodes."""
+        self._fallback(ctx, f"no AST handler for {ctx.__class__.__name__}")
         return None
 
     def visit_children(self, ctx) -> List[nodes.ASTNode]:
@@ -202,15 +219,49 @@ class ASTBuilder:
         return "::".join(parts) if parts else ""
 
     def visit_QualifiedType(self, ctx) -> nodes.QualifiedType:
-        """Visit qualified type: sensor_msgs::LaserScan"""
+        """Visit qualified type: sensor_msgs::LaserScan, sensor_msgs::msg::LaserScan"""
         qualified = self.visit_QualifiedIdentifier(ctx.qualifiedIdentifier()) if hasattr(ctx, 'qualifiedIdentifier') else ""
-        parts = qualified.split("::") if qualified else ["", ""]
+        package, kind, name = self.split_qualified_type(qualified, ctx)
 
         return nodes.QualifiedType(
             location=self._loc(ctx),
-            package=parts[0] if len(parts) > 1 else "",
-            name=parts[-1] if parts else ""
+            package=package,
+            name=name,
+            kind=kind
         )
+
+    def _qualified_type_of(self, ctx) -> nodes.QualifiedType:
+        """QualifiedType for a declaration whose ``qualifiedIdentifier`` is the interface type."""
+        qi_ctx = ctx.qualifiedIdentifier() if hasattr(ctx, 'qualifiedIdentifier') else None
+        if not qi_ctx:
+            return nodes.QualifiedType(location=self._loc(ctx), package="", name="")
+        return self.visit_QualifiedType(ctx)
+
+    def split_qualified_type(self, qualified: str, ctx=None):
+        """Validate and split ``pkg::Type`` / ``pkg::msg::Type``.
+
+        Returns ``(package, kind, name)``.  ``package`` is empty for an
+        unqualified name.  Malformed names are reported through ``self.errors``.
+        """
+        parts = qualified.split("::") if qualified else []
+
+        if not parts or any(not part for part in parts):
+            self._error(ctx, f"malformed qualified type '{qualified}'")
+            return "", None, parts[-1] if parts and parts[-1] else ""
+
+        if len(parts) == 1:
+            return "", None, parts[0]
+        if len(parts) == 2:
+            return parts[0], None, parts[1]
+        if len(parts) == 3 and parts[1] in INTERFACE_KINDS:
+            return parts[0], parts[1], parts[2]
+
+        self._error(
+            ctx,
+            f"invalid qualified type '{qualified}': expected 'package::Type' or "
+            f"'package::{{{'|'.join(INTERFACE_KINDS)}}}::Type'"
+        )
+        return parts[0], None, parts[-1]
 
     def visit_typeSpec(self, ctx) -> nodes.Type:
         """Visit type specification."""
@@ -261,6 +312,7 @@ class ASTBuilder:
             )
 
         # Default fallback
+        self._fallback(ctx, "unrecognised type specification, defaulting to string")
         return nodes.PrimitiveType(
             location=self._loc(ctx),
             kind=nodes.PrimitiveTypeKind.STRING
@@ -725,21 +777,7 @@ class ASTBuilder:
                 name = self._get_text(id_ctx)
 
         # Get message type from qualified identifier
-        msg_type = nodes.QualifiedType(
-            location=self._loc(ctx),
-            package="",
-            name=""
-        )
-        if hasattr(ctx, 'qualifiedIdentifier') and callable(ctx.qualifiedIdentifier):
-            qi_ctx = ctx.qualifiedIdentifier()
-            if qi_ctx:
-                qualified = self.visit_QualifiedIdentifier(qi_ctx)
-                parts = qualified.split("::") if qualified else ["", ""]
-                msg_type = nodes.QualifiedType(
-                    location=self._loc(ctx),
-                    package=parts[0] if len(parts) > 1 else "",
-                    name=parts[-1] if parts else ""
-                )
+        msg_type = self._qualified_type_of(ctx)
 
         topic = None
         if hasattr(ctx, 'expression') and callable(ctx.expression):
@@ -771,21 +809,7 @@ class ASTBuilder:
             if id_ctx:
                 name = self._get_text(id_ctx)
 
-        msg_type = nodes.QualifiedType(
-            location=self._loc(ctx),
-            package="",
-            name=""
-        )
-        if hasattr(ctx, 'qualifiedIdentifier') and callable(ctx.qualifiedIdentifier):
-            qi_ctx = ctx.qualifiedIdentifier()
-            if qi_ctx:
-                qualified = self.visit_QualifiedIdentifier(qi_ctx)
-                parts = qualified.split("::") if qualified else ["", ""]
-                msg_type = nodes.QualifiedType(
-                    location=self._loc(ctx),
-                    package=parts[0] if len(parts) > 1 else "",
-                    name=parts[-1] if parts else ""
-                )
+        msg_type = self._qualified_type_of(ctx)
 
         topic = None
         if hasattr(ctx, 'expression') and callable(ctx.expression):
@@ -817,21 +841,7 @@ class ASTBuilder:
             if id_ctx:
                 name = self._get_text(id_ctx)
 
-        service_type = nodes.QualifiedType(
-            location=self._loc(ctx),
-            package="",
-            name=""
-        )
-        if hasattr(ctx, 'qualifiedIdentifier') and callable(ctx.qualifiedIdentifier):
-            qi_ctx = ctx.qualifiedIdentifier()
-            if qi_ctx:
-                qualified = self.visit_QualifiedIdentifier(qi_ctx)
-                parts = qualified.split("::") if qualified else ["", ""]
-                service_type = nodes.QualifiedType(
-                    location=self._loc(ctx),
-                    package=parts[0] if len(parts) > 1 else "",
-                    name=parts[-1] if parts else ""
-                )
+        service_type = self._qualified_type_of(ctx)
 
         service_name = None
         if hasattr(ctx, 'expression') and callable(ctx.expression):
@@ -863,21 +873,7 @@ class ASTBuilder:
             if id_ctx:
                 name = self._get_text(id_ctx)
 
-        action_type = nodes.QualifiedType(
-            location=self._loc(ctx),
-            package="",
-            name=""
-        )
-        if hasattr(ctx, 'qualifiedIdentifier') and callable(ctx.qualifiedIdentifier):
-            qi_ctx = ctx.qualifiedIdentifier()
-            if qi_ctx:
-                qualified = self.visit_QualifiedIdentifier(qi_ctx)
-                parts = qualified.split("::") if qualified else ["", ""]
-                action_type = nodes.QualifiedType(
-                    location=self._loc(ctx),
-                    package=parts[0] if len(parts) > 1 else "",
-                    name=parts[-1] if parts else ""
-                )
+        action_type = self._qualified_type_of(ctx)
 
         constraints = []
         if hasattr(ctx, 'constraint') and callable(ctx.constraint):

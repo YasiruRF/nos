@@ -87,9 +87,10 @@ class PrimitiveType(Type):
 
 @dataclass
 class QualifiedType(Type):
-    """Qualified type: sensor_msgs::LaserScan"""
+    """Qualified type: sensor_msgs::LaserScan or sensor_msgs::msg::LaserScan"""
     package: str
     name: str
+    kind: Optional[str] = None  # 'msg', 'srv' or 'action' when written explicitly
 
 
 @dataclass

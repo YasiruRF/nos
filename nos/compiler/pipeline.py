@@ -9,8 +9,9 @@ from typing import List, Optional, Dict, Any
 from pathlib import Path
 import hashlib
 import json
-import re
+import logging
 import subprocess
+import traceback
 
 # ANTLR4 imports
 from antlr4 import CommonTokenStream, InputStream, ParseTreeWalker
@@ -26,6 +27,8 @@ from ..semantic import SemanticAnalyzer, AnalysisResult
 from ..codegen import PythonGenerator, LaunchTranspiler, GenerationOutput
 from ..codegen.naming import ros_package_name
 
+logger = logging.getLogger(__name__)
+
 
 class NOSSyntaxError(Exception):
     """Syntax error in NOS source.
@@ -38,16 +41,20 @@ class NOSSyntaxError(Exception):
         super().__init__("\n".join(errors))
 
 
+class NOSInternalError(Exception):
+    """A bug in the compiler (as opposed to a mistake in the NOS source)."""
+
+
 class NOSErrorListener(ErrorListener):
     """Custom error listener for ANTLR4 syntax errors."""
 
-    def __init__(self):
+    def __init__(self, file_name: str = "<input>"):
         super().__init__()
-        self.errors = []
+        self.file_name = file_name
+        self.errors: List[str] = []
 
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-        error_msg = f"Syntax error at {line}:{column} - {msg}"
-        self.errors.append(error_msg)
+        self.errors.append(f"{self.file_name}:{line}:{column}: error: {msg}")
 
 
 @dataclass
@@ -112,7 +119,7 @@ class CompilerPipeline:
         """Compile a single NOS source file.
 
         Args:
-            file_path: Path to .nos, .node, or .interface file
+            file_path: Path to a .node or .interface file
 
         Returns:
             CompilationResult with generated files or errors
@@ -123,52 +130,16 @@ class CompilerPipeline:
             >>> print(f"Success: {result.success}")
             >>> print(f"Files generated: {list(result.files.keys())}")
         """
-        result = CompilationResult()
-
+        path = Path(file_path)
         try:
-            # Step 1: Parse source file
-            if self.verbose:
-                print(f"Parsing: {file_path}")
+            # utf-8-sig: tolerate a BOM written by Windows editors
+            source = path.read_text(encoding='utf-8-sig')
+        except FileNotFoundError:
+            return CompilationResult(errors=[f"{file_path}: error: file not found"])
+        except (OSError, UnicodeDecodeError) as e:
+            return CompilationResult(errors=[f"{file_path}: error: cannot read file: {e}"])
 
-            ast = self._parse_file(file_path)
-            if ast is None:
-                result.errors.append(f"Failed to parse: {file_path}")
-                return result
-
-            result.ast = ast
-
-            # Step 2: Semantic analysis
-            if self.verbose:
-                print(f"Analyzing: {file_path}")
-
-            analysis = self._analyze(ast)
-            result.errors.extend([str(e) for e in analysis.errors])
-            result.warnings.extend([str(w) for w in analysis.warnings])
-
-            if not analysis.is_valid:
-                return result
-
-            # Step 3: Code generation
-            if self.verbose:
-                print(f"Generating: {file_path}")
-
-            generated = self._generate(ast, analysis.symbol_table)
-            result.files = generated.files
-
-            if hasattr(generated, 'security_errors') and generated.security_errors:
-                result.errors.extend(generated.security_errors)
-                result.success = False
-                return result
-
-            result.success = True
-            return result
-
-        except Exception as e:
-            result.errors.append(f"Compilation error: {str(e)}")
-            if self.verbose:
-                import traceback
-                result.errors.append(traceback.format_exc())
-            return result
+        return self._compile(source, file_path)
 
     def compile_string(self, source: str, file_name: str = "<string>") -> CompilationResult:
         """Compile NOS source from a string.
@@ -180,111 +151,90 @@ class CompilerPipeline:
         Returns:
             CompilationResult with generated files or errors
         """
+        return self._compile(source, file_name)
+
+    def _compile(self, source: str, file_name: str) -> CompilationResult:
+        """Parse, analyse and generate; shared by compile_file and compile_string."""
         result = CompilationResult()
+        source = source.lstrip('\ufeff')
 
         try:
-            # Parse
+            logger.info("Parsing: %s", file_name)
             ast = self._parse_string(source, file_name)
-            if ast is None:
-                result.errors.append(f"Failed to parse: {file_name}")
-                return result
-
             result.ast = ast
 
-            # Analyze
+            logger.info("Analyzing: %s", file_name)
             analysis = self._analyze(ast)
-            result.errors.extend([str(e) for e in analysis.errors])
-            result.warnings.extend([str(w) for w in analysis.warnings])
-
+            result.errors.extend(str(e) for e in analysis.errors)
+            result.warnings.extend(str(w) for w in analysis.warnings)
             if not analysis.is_valid:
                 return result
 
-            # Generate
+            logger.info("Generating: %s", file_name)
             generated = self._generate(ast, analysis.symbol_table)
             result.files = generated.files
 
-            if hasattr(generated, 'security_errors') and generated.security_errors:
+            if generated.security_errors:
                 result.errors.extend(generated.security_errors)
-                result.success = False
+                return result
+
+            if not generated.files:
+                result.errors.append(
+                    f"{file_name}: error: nothing to generate "
+                    f"(the file declares no node or launch)"
+                )
                 return result
 
             result.success = True
             return result
 
-        except Exception as e:
-            result.errors.append(f"Compilation error: {str(e)}")
+        except NOSSyntaxError as e:
+            result.ast = None
+            result.errors.extend(e.errors)
+            return result
+        except Exception as e:  # a bug in the compiler, not in the user's source
+            logger.debug("Internal compiler error", exc_info=True)
+            result.errors.append(
+                f"{file_name}: internal compiler error: {type(e).__name__}: {e} "
+                f"(this is a bug in NOS; run with --verbose for the traceback)"
+            )
+            if self.verbose:
+                result.errors.append(traceback.format_exc())
             return result
 
-    def _parse_file(self, file_path: str) -> Optional[nodes.ASTNode]:
-        """Parse a source file into AST using ANTLR4.
-
-        Args:
-            file_path: Path to .nos, .node, or .interface file
-
-        Returns:
-            Root AST node or None if parsing fails
-        """
-        path = Path(file_path)
-        if not path.exists():
-            return None
-
-        try:
-            source = path.read_text(encoding='utf-8')
-            return self._parse_string(source, str(path))
-        except Exception as e:
-            if self.verbose:
-                print(f"Error reading file {file_path}: {e}")
-            return None
-
-    def _parse_string(self, source: str, file_name: str) -> Optional[nodes.ASTNode]:
+    def _parse_string(self, source: str, file_name: str) -> nodes.ASTNode:
         """Parse source string into AST using ANTLR4.
 
-        Args:
-            source: NOS source code
-            file_name: Name for error reporting
-
-        Returns:
-            Root AST node or None if parsing fails
+        Raises:
+            NOSSyntaxError: the source is not valid NOS (messages are
+                ``file:line:col: error: ...``)
         """
-        try:
-            # Create input stream from source
-            input_stream = InputStream(source)
+        input_stream = InputStream(source)
 
-            # Create lexer with custom error listener
-            lexer = NOSLexer(input_stream)
-            error_listener = NOSErrorListener()
-            lexer.removeErrorListeners()
-            lexer.addErrorListener(error_listener)
+        error_listener = NOSErrorListener(file_name)
+        lexer = NOSLexer(input_stream)
+        lexer.removeErrorListeners()
+        lexer.addErrorListener(error_listener)
 
-            # Create token stream
-            tokens = CommonTokenStream(lexer)
+        tokens = CommonTokenStream(lexer)
 
-            # Create parser with custom error listener
-            parser = NOSParser(tokens)
-            parser.removeErrorListeners()
-            parser.addErrorListener(error_listener)
+        parser = NOSParser(tokens)
+        parser.removeErrorListeners()
+        parser.addErrorListener(error_listener)
 
-            # Parse starting from the 'nosFile' rule
-            parse_tree = parser.nosFile()
+        parse_tree = parser.nosFile()
 
-            # Check for syntax errors
-            if error_listener.errors:
-                raise NOSSyntaxError(error_listener.errors)
+        if error_listener.errors:
+            raise NOSSyntaxError(error_listener.errors)
 
-            # Convert parse tree to AST using ASTBuilder
-            builder = ASTBuilder(file_name)
-            ast = builder.visit(parse_tree)
+        builder = ASTBuilder(file_name)
+        ast = builder.visit(parse_tree)
+        if builder.errors:
+            raise NOSSyntaxError(builder.errors)
+        if ast is None:
+            raise NOSInternalError(f"AST builder returned nothing for {file_name}")
 
-            return ast
-
-        except NOSSyntaxError:
-            raise
-        except Exception as e:
-            if self.verbose:
-                print(f"Parse error in {file_name}: {e}")
-                import traceback
-                traceback.print_exc()
-            return None
+        return ast
 
     def _analyze(self, ast: nodes.ASTNode) -> AnalysisResult:
         """Run semantic analysis on AST."""
@@ -345,15 +295,14 @@ class CompilerPipeline:
                     if self._should_run_build(workspace_path, package_name, fingerprint):
                         self._run_colcon_build(workspace_path, package_name)
                         self._update_build_cache(workspace_path, package_name, fingerprint)
-                    elif self.verbose:
-                        print(f"  Build cache hit for package '{package_name}', skipping colcon build")
+                    else:
+                        logger.info("Build cache hit for package '%s', skipping colcon build", package_name)
             else:
                 for file_path, content in result.files.items():
                     full_path = output_path / file_path
                     full_path.parent.mkdir(parents=True, exist_ok=True)
                     full_path.write_text(content, encoding='utf-8')
-                    if self.verbose:
-                        print(f"  Wrote: {full_path}")
+                    logger.info("Wrote: %s", full_path)
             return True
         except Exception as e:
             result.errors.append(f"Failed to write output: {str(e)}")
@@ -408,8 +357,7 @@ class CompilerPipeline:
 
     def _run_colcon_build(self, workspace_path: Path, package_name: str) -> None:
         """Run colcon build for a single package."""
-        if self.verbose:
-            print(f"  Building ROS2 package '{package_name}' with colcon")
+        logger.info("Building ROS2 package '%s' with colcon", package_name)
 
         cmd = ["colcon", "build", "--packages-select", package_name]
         try:
@@ -431,8 +379,8 @@ class CompilerPipeline:
             details = stderr or stdout or "Unknown colcon build failure"
             raise RuntimeError(f"colcon build failed for package '{package_name}': {details}")
 
-        if self.verbose and proc.stdout:
-            print(proc.stdout)
+        if proc.stdout:
+            logger.debug(proc.stdout)
 
     def _generate_ros2_package_scaffold(self, package_root: Path, package_name: str, files: Dict[str, str]) -> None:
         """Generate minimal ament_python package scaffolding."""
@@ -534,8 +482,7 @@ setup(
 
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding='utf-8')
-            if self.verbose:
-                print(f"  Wrote: {target}")
+            logger.info("Wrote: %s", target)
 
     def compile_multiple(self, file_paths: List[str]) -> Dict[str, CompilationResult]:
         """Compile multiple files and return results.

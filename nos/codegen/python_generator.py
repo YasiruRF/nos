@@ -96,7 +96,7 @@ class PythonGenerator(CodeGenerator):
             if isinstance(type_node, nodes.ListType):
                 add(type_node.element_type, kind)
             elif isinstance(type_node, nodes.QualifiedType) and type_node.package:
-                wanted.setdefault((type_node.package, kind), set()).add(type_node.name)
+                wanted.setdefault((type_node.package, type_node.kind or kind), set()).add(type_node.name)
 
         for sub in node.subscriptions:
             add(sub.message_type, "msg")
