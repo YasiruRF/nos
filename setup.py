@@ -1,14 +1,22 @@
 """Setup script for NOS package."""
 
+import re
 from setuptools import setup, find_packages
 from pathlib import Path
 
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding='utf-8')
 
+# Single source of truth for the version: nos/__init__.py
+version = re.search(
+    r'^__version__ = "([^"]+)"',
+    (this_directory / "nos" / "__init__.py").read_text(encoding='utf-8'),
+    re.M,
+).group(1)
+
 setup(
     name="nos",
-    version="0.1.7",
+    version=version,
     description="Node Orchestration System (NOS) - A declarative DSL for ROS2 robotics",
     long_description=long_description,
     long_description_content_type="text/markdown",
