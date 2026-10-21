@@ -29,6 +29,7 @@ class PythonGenerator(CodeGenerator):
         self.target = 'python'
         self.package_name: Optional[str] = None
         self.symbol_table: Optional[SymbolTable] = None
+        self._type_aliases: Dict[tuple, str] = {}
 
     def _reserved_keywords(self) -> set:
         """Python reserved keywords."""
@@ -58,6 +59,7 @@ class PythonGenerator(CodeGenerator):
         """Generate Python code for a node."""
         class_name = node.name
         base_class = "NOSLifecycleNode" if self._is_lifecycle(node) else "NOSNode"
+        self._compute_type_aliases(node)
 
         class_def = self._generate_node_class(node, class_name, base_class)
         main = self._generate_main_function(node, class_name)
@@ -90,15 +92,15 @@ class PythonGenerator(CodeGenerator):
     def _uses(self, code: str, name: str) -> bool:
         return re.search(rf"(?<![\w.]){re.escape(name)}\b", code) is not None
 
-    def _interface_imports(self, node: nodes.NodeDecl) -> List[str]:
-        """Explicit ``from pkg.kind import Type`` lines for every interface the node uses."""
-        wanted: Dict[tuple, Set[str]] = {}
+    def _interface_types(self, node: nodes.NodeDecl) -> List[tuple]:
+        """Every (package, kind, name) interface type the node refers to."""
+        found = []
 
         def add(type_node: Optional[nodes.Type], kind: str) -> None:
             if isinstance(type_node, nodes.ListType):
                 add(type_node.element_type, kind)
             elif isinstance(type_node, nodes.QualifiedType) and type_node.package:
-                wanted.setdefault((type_node.package, type_node.kind or kind), set()).add(type_node.name)
+                found.append((type_node.package, type_node.kind or kind, type_node.name))
 
         for sub in node.subscriptions:
             add(sub.message_type, "msg")
@@ -111,8 +113,32 @@ class PythonGenerator(CodeGenerator):
         for cb in node.callbacks:
             for param in cb.parameters:
                 add(param.type, "msg")
+        return found
 
-        # A type used both as a message and e.g. a callback parameter is imported once.
+    def _compute_type_aliases(self, node: nodes.NodeDecl) -> None:
+        """Alias interface types whose short names clash (``a::Thing`` vs ``b::Thing``)."""
+        by_name: Dict[str, Set[tuple]] = {}
+        for package, kind, name in self._interface_types(node):
+            by_name.setdefault(name, set()).add((package, kind))
+        self._type_aliases = {
+            (package, name): f"{package}_{name}"
+            for name, origins in by_name.items() if len(origins) > 1
+            for package, _kind in origins
+        }
+
+    def _type_name(self, type_node: nodes.QualifiedType) -> str:
+        """Python name for an interface type (aliased if its short name is ambiguous)."""
+        return self._type_aliases.get((type_node.package, type_node.name), type_node.name)
+
+    def _interface_imports(self, node: nodes.NodeDecl) -> List[str]:
+        """Explicit ``from pkg.kind import Type`` lines for every interface the node uses."""
+        wanted: Dict[tuple, Set[str]] = {}
+        for package, kind, name in self._interface_types(node):
+            alias = self._type_aliases.get((package, name))
+            wanted.setdefault((package, kind), set()).add(
+                f"{name} as {alias}" if alias else name
+            )
+
         return [
             f"from {pkg}.{kind} import {', '.join(sorted(names))}"
             for (pkg, kind), names in sorted(wanted.items())
@@ -321,7 +347,7 @@ class PythonGenerator(CodeGenerator):
 
         # Generate subscriptions
         for sub in node.subscriptions:
-            msg_type = sub.message_type.name
+            msg_type = self._type_name(sub.message_type)
             topic_expr = self._expression_to_python(sub.topic)
             callback_name = f"_on_{sub.name}_received"
             qos = self._generate_qos_config(sub.qos)
@@ -341,7 +367,7 @@ class PythonGenerator(CodeGenerator):
         # Generate publishers (lifecycle nodes publish only while active)
         create_pub = "create_lifecycle_publisher" if self._is_lifecycle(node) else "create_publisher"
         for pub in node.publications:
-            msg_type = pub.message_type.name
+            msg_type = self._type_name(pub.message_type)
             topic_expr = self._expression_to_python(pub.topic)
             qos = self._generate_qos_config(pub.qos)
             
@@ -359,7 +385,7 @@ class PythonGenerator(CodeGenerator):
 
         # Generate services (servers & clients)
         for svc in node.services:
-            svc_type = svc.service_type.name
+            svc_type = self._type_name(svc.service_type)
             svc_name = self._expression_to_python(svc.service_name)
             
             cb_group = ""
@@ -384,7 +410,7 @@ class PythonGenerator(CodeGenerator):
 
         # Generate actions (servers & clients)
         for act in node.actions:
-            action_type = act.action_type.name
+            action_type = self._type_name(act.action_type)
             action_name = f"'{act.name}'"
             
             cb_group = ""
@@ -447,7 +473,7 @@ class PythonGenerator(CodeGenerator):
 
         # Generate subscription callbacks
         for sub in node.subscriptions:
-            msg_type = sub.message_type.name
+            msg_type = self._type_name(sub.message_type)
             callback_name = f"{sub.name}_received"
             user_callback = callback_name
             if f"on_{callback_name}" in user_implemented_events:
@@ -476,7 +502,6 @@ class PythonGenerator(CodeGenerator):
         for svc in node.services:
             if self._is_client(svc):
                 continue
-            svc_type = svc.service_type.name
             callback_name = f"{svc.name}_callback"
             user_callback_name = f"{svc.name}_request"
             user_callback = user_callback_name
@@ -509,7 +534,7 @@ class PythonGenerator(CodeGenerator):
         for act in node.actions:
             if self._is_client(act):
                 continue
-            action_type = act.action_type.name
+            action_type = self._type_name(act.action_type)
             callback_name = f"{act.name}_execute"
             user_callback = callback_name
             if f"on_{callback_name}" in user_implemented_events:
@@ -795,7 +820,7 @@ if __name__ == '__main__':
             return type_map.get(type_node.kind.value, "Any")
 
         elif isinstance(type_node, nodes.QualifiedType):
-            return type_node.name
+            return self._type_name(type_node)
 
         elif isinstance(type_node, nodes.ListType):
             element = self._get_python_type(type_node.element_type)

@@ -11,9 +11,7 @@ FIXTURES = sorted((Path(__file__).parent.parent / "fixtures").glob("*.node"))
 
 
 # Fixtures that still trip a known bug; remove the entry when the issue is fixed.
-KNOWN_FAILURES = {
-    "subscriber_service_action.node": "#19 hard-coded ROS package list",
-}
+KNOWN_FAILURES = {}
 
 
 @pytest.mark.parametrize("fixture", FIXTURES, ids=lambda p: p.name)

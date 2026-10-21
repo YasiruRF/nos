@@ -1,4 +1,5 @@
 package demo_comm
+depends: ["example_interfaces"]
 
 node Worker {
   subscriptions {

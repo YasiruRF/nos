@@ -8,12 +8,21 @@ Orchestrates semantic analysis passes including:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Any
+from typing import Dict, List, Optional, Any, Set, Tuple
 from enum import Enum
 
 from ..ast import nodes
 from ..ast.visitor import ASTVisitor
+from . import constraints as constraint_registry
 from .symbol_table import SymbolTable, Symbol, Scope, SymbolType
+
+# Interface packages that ship with every ROS 2 distribution
+BUILTIN_PACKAGES = frozenset({
+    'std_msgs', 'geometry_msgs', 'sensor_msgs', 'nav_msgs',
+    'diagnostic_msgs', 'action_msgs', 'builtin_interfaces',
+    'rcl_interfaces', 'tf2_msgs', 'trajectory_msgs', 'visualization_msgs',
+    'stereo_msgs', 'shape_msgs', 'std_srvs', 'lifecycle_msgs',
+})
 
 
 class DiagnosticSeverity(Enum):
@@ -116,6 +125,10 @@ class SemanticAnalyzer(ASTVisitor):
         self.symbol_table = SymbolTable()
         self.diagnostics: List[Diagnostic] = []
         self.current_node: Optional[str] = None
+        # Interface packages the source may use: builtin + `depends:` + imports
+        self.known_packages: Set[str] = set(BUILTIN_PACKAGES)
+        # `import pkg::Type [as Alias]` -> {local name: (pkg, Type)}
+        self.imported_types: Dict[str, Tuple[str, str]] = {}
 
     def analyze(self, ast: nodes.ASTNode) -> AnalysisResult:
         """Analyze an AST and return results.
@@ -127,6 +140,9 @@ class SemanticAnalyzer(ASTVisitor):
             AnalysisResult containing validated AST and diagnostics
         """
         self.diagnostics.clear()
+        self.symbol_table = SymbolTable()
+        self.current_node = None
+        self._collect_packages(ast)
 
         self._reject_interface_declarations(ast)
 
@@ -141,6 +157,22 @@ class SemanticAnalyzer(ASTVisitor):
             symbol_table=self.symbol_table,
             diagnostics=self.diagnostics.copy()
         )
+
+    def _collect_packages(self, ast: nodes.ASTNode):
+        """Work out which interface packages and types the source may refer to."""
+        self.known_packages = set(BUILTIN_PACKAGES)
+        self.imported_types = {}
+        if not isinstance(ast, nodes.File):
+            return
+
+        if ast.package:
+            self.known_packages.update(ast.package.dependencies)
+
+        for imp in ast.imports:
+            parts = imp.qualified_name.split("::")
+            self.known_packages.add(parts[0])
+            if len(parts) >= 2:
+                self.imported_types[imp.alias or parts[-1]] = (parts[0], parts[-1])
 
     def _reject_interface_declarations(self, ast: nodes.ASTNode):
         """Interface declarations parse but nothing generates .msg/.srv/.action yet."""
@@ -269,7 +301,7 @@ class SymbolTableBuilder(ASTVisitor):
             return
 
         # Create node scope
-        node_scope = self.symbol_table.push_scope(node.name, "node")
+        self.symbol_table.push_scope(node.name, "node")
         self.analyzer.current_node = node.name
 
         # Process parameters
@@ -407,17 +439,22 @@ class SymbolTableBuilder(ASTVisitor):
 
     def visit_CallbackDecl(self, node: nodes.CallbackDecl) -> None:
         """Visit callback declaration."""
-        # Create callback scope
-        callback_scope = self.symbol_table.push_scope(node.event, "callback")
-
-        # Define callback symbol
+        # Define callback symbol (in the node scope, so duplicates collide)
         symbol = Symbol(
             name=node.event,
             symbol_type=SymbolType.CALLBACK,
             node=node,
             scope=self.symbol_table.current_scope
         )
-        self.symbol_table.define(symbol)
+        if not self.symbol_table.define(symbol):
+            self.analyzer._add_error(
+                f"Duplicate callback: '{node.event}'",
+                node.location,
+                "E011"
+            )
+
+        # Create callback scope
+        callback_scope = self.symbol_table.push_scope(node.event, "callback")
 
         # Define parameters in callback scope
         for param in node.parameters:
@@ -452,7 +489,7 @@ class SymbolTableBuilder(ASTVisitor):
             return
 
         # Create launch scope
-        launch_scope = self.symbol_table.push_scope(node.name, "launch")
+        self.symbol_table.push_scope(node.name, "launch")
 
         # Process arguments
         for arg in node.arguments:
@@ -544,9 +581,9 @@ class ReferenceResolver(ASTVisitor):
 
         # Validate member exists on object type
         if isinstance(obj_type, nodes.StructType):
-            for field in obj_type.fields:
-                if field.name == node.member:
-                    return field.type
+            for struct_field in obj_type.fields:
+                if struct_field.name == node.member:
+                    return struct_field.type
             
             self.analyzer._add_error(
                 f"Member '{node.member}' not found on struct type",
@@ -575,7 +612,7 @@ class ReferenceResolver(ASTVisitor):
     def visit_CallExpression(self, node: nodes.CallExpression) -> Optional[nodes.Type]:
         """Visit function call expression."""
         # Visit the callee
-        callee_type = self.visit(node.callee)
+        self.visit(node.callee)
 
         # Visit arguments
         for arg in node.arguments:
@@ -613,42 +650,44 @@ class ReferenceResolver(ASTVisitor):
         return None
 
     def visit_QualifiedType(self, node: nodes.QualifiedType) -> nodes.Type:
-        """Visit qualified type reference."""
-        # Check if the package exists (imported or builtin)
-        # Standard ROS2 message packages
-        builtin_packages = {
-            'std_msgs', 'geometry_msgs', 'sensor_msgs', 'nav_msgs',
-            'diagnostic_msgs', 'action_msgs', 'builtin_interfaces',
-            'rcl_interfaces', 'tf2_msgs', 'trajectory_msgs', 'visualization_msgs',
-            'stereo_msgs', 'shape_msgs', 'std_srvs', 'turtlesim', 'turtlesim_msgs'
-        }
+        """Visit qualified type reference.
 
-        if node.package:
-            if node.package not in builtin_packages:
-                # Check if package was imported
-                import_scope = self._find_import(node.package)
-                if import_scope is None:
-                    self.analyzer._add_error(
-                        f"Unknown package or import: '{node.package}'",
-                        node.location,
-                        "E008"
-                    )
-                else:
-                    # Check if the type exists in that package scope
-                    symbol = import_scope.lookup_local(node.name)
-                    if symbol is None:
-                        self.analyzer._add_error(
-                            f"Type '{node.name}' not found in package '{node.package}'",
-                            node.location,
-                            "E009"
-                        )
-        else:
-            # Unqualified type - check if it's a builtin primitive handled elsewhere
-            # or if it exists in the current scope chain
-            symbol = self.symbol_table.lookup(node.name)
-            if symbol is None:
-                # Could be a builtin primitive like 'string', 'int' etc.
-                pass
+        The package must be a builtin ROS package, listed in ``depends:`` or
+        imported.  An unqualified name is resolved through
+        ``import pkg::Type [as Alias]`` (the node is rewritten to the
+        qualified form so code generation sees the real package).
+        """
+        analyzer = self.analyzer
+
+        if not node.package:
+            imported = analyzer.imported_types.get(node.name)
+            if imported:
+                node.package, node.name = imported
+            elif node.name:
+                analyzer._add_warning(
+                    f"Unqualified type '{node.name}': write 'package::{node.name}' "
+                    f"or import it with 'import package::{node.name}'",
+                    node.location,
+                    "W022"
+                )
+            return node
+
+        if node.package not in analyzer.known_packages:
+            analyzer._add_error(
+                f"Unknown package or import: '{node.package}' "
+                f"(add it to 'depends:' or import it)",
+                node.location,
+                "E008"
+            )
+            return node
+
+        available = _installed_interfaces(node.package)
+        if available is not None and node.name not in available:
+            analyzer._add_warning(
+                f"Type '{node.name}' was not found in the installed package '{node.package}'",
+                node.location,
+                "W021"
+            )
 
         return node
 
@@ -665,20 +704,162 @@ class ReferenceResolver(ASTVisitor):
         return None
 
     def visit_Constraint(self, node: nodes.Constraint) -> None:
-        """Visit constraint and validate."""
-        valid_constraints = {
-            'range', 'one_of', 'min', 'max', 'pattern',
-            'description', 'dynamic', 'computed', 'validate',
-            'topic', 'qos', 'service', 'when', 'delay'
-        }
-
-        if node.name not in valid_constraints:
+        """Visit constraint: the name must be in the constraint registry."""
+        if node.name not in constraint_registry.CONSTRAINTS:
             self.analyzer._add_warning(
                 f"Unknown constraint: '@{node.name}'",
                 node.location,
                 "W020"
             )
 
-        # Visit constraint arguments
         for arg in node.arguments:
             self.visit(arg)
+
+    # ------------------------------------------------------------------
+    # Declaration-level checks
+    # ------------------------------------------------------------------
+
+    def _check_constraints(self, constraints: List[nodes.Constraint], target: str) -> None:
+        """Check each constraint against the registry for the declaration kind."""
+        for constraint in constraints:
+            spec = constraint_registry.CONSTRAINTS.get(constraint.name)
+            if spec is None:
+                continue  # reported as W020 by visit_Constraint
+
+            if spec.targets is not None and target not in spec.targets:
+                self.analyzer._add_error(
+                    f"@{constraint.name} cannot be applied to a {target}",
+                    constraint.location,
+                    "E012"
+                )
+                continue
+
+            count = len(constraint.arguments)
+            if count < spec.min_args or (spec.max_args is not None and count > spec.max_args):
+                expected = (str(spec.min_args) if spec.max_args == spec.min_args
+                            else f"{spec.min_args}+" if spec.max_args is None
+                            else f"{spec.min_args}-{spec.max_args}")
+                self.analyzer._add_error(
+                    f"@{constraint.name} takes {expected} argument(s), got {count}",
+                    constraint.location,
+                    "E012"
+                )
+
+            if constraint.name == "range":
+                self._check_range(constraint)
+            elif constraint.name == "qos":
+                self._check_qos(constraint)
+
+    def _check_range(self, constraint: nodes.Constraint) -> None:
+        bounds = [a.value for a in constraint.arguments
+                  if isinstance(a, nodes.LiteralExpression) and a.literal_type in ("int", "float")]
+        if len(bounds) == 2 and bounds[0] > bounds[1]:
+            self.analyzer._add_error(
+                f"@range minimum ({bounds[0]}) is greater than maximum ({bounds[1]})",
+                constraint.location,
+                "E014"
+            )
+
+    def _check_qos(self, constraint: nodes.Constraint) -> None:
+        for key, expr in constraint.named_arguments.items():
+            if key not in constraint_registry.QOS_KEYS:
+                self.analyzer._add_error(
+                    f"Unknown @qos setting '{key}' "
+                    f"(expected one of: {', '.join(sorted(constraint_registry.QOS_KEYS))})",
+                    constraint.location,
+                    "E013"
+                )
+                continue
+            allowed = constraint_registry.QOS_VALUES.get(key)
+            value = (expr.value if isinstance(expr, nodes.LiteralExpression)
+                     else expr.name if isinstance(expr, nodes.IdentifierExpression) else None)
+            if allowed is not None and value not in allowed:
+                self.analyzer._add_error(
+                    f"Invalid @qos {key} '{value}' (expected one of: {', '.join(sorted(allowed))})",
+                    constraint.location,
+                    "E013"
+                )
+            if key == "depth" and not (isinstance(value, int) and not isinstance(value, bool) and value > 0):
+                self.analyzer._add_error(
+                    "@qos depth must be a positive integer",
+                    constraint.location,
+                    "E013"
+                )
+        if len(constraint.named_arguments) != len(constraint.arguments):
+            self.analyzer._add_error(
+                "@qos arguments must be written as name=value",
+                constraint.location,
+                "E013"
+            )
+
+    def _check_default(self, decl) -> None:
+        """A literal default must be compatible with the declared primitive type."""
+        default, declared = decl.default_value, decl.type
+        if not isinstance(default, nodes.LiteralExpression) \
+                or not isinstance(declared, nodes.PrimitiveType):
+            return
+
+        K = nodes.PrimitiveTypeKind
+        compatible = {
+            K.BOOL: {"bool"},
+            K.INT: {"int"},
+            K.FLOAT: {"int", "float"},
+            K.DOUBLE: {"int", "float"},
+            K.STRING: {"string"},
+            K.DURATION: {"duration"},
+            K.TIME: {"duration"},
+        }.get(declared.kind)
+        if compatible is not None and default.literal_type not in compatible:
+            self.analyzer._add_error(
+                f"Default value of '{decl.name}' is a {default.literal_type}, "
+                f"but its type is {declared.kind.value}",
+                default.location,
+                "E015"
+            )
+
+    def visit_ParameterDecl(self, node: nodes.ParameterDecl) -> None:
+        self._check_constraints(node.constraints, constraint_registry.PARAMETER)
+        self._check_default(node)
+        self.visit_children(node)
+
+    def visit_ArgumentDecl(self, node: nodes.ArgumentDecl) -> None:
+        self._check_constraints(node.constraints, constraint_registry.ARGUMENT)
+        self._check_default(node)
+        self.visit_children(node)
+
+    def visit_SubscriptionDecl(self, node: nodes.SubscriptionDecl) -> None:
+        self._check_constraints(node.constraints, constraint_registry.SUBSCRIPTION)
+        self.visit_children(node)
+
+    def visit_PublicationDecl(self, node: nodes.PublicationDecl) -> None:
+        self._check_constraints(node.constraints, constraint_registry.PUBLICATION)
+        self.visit_children(node)
+
+    def visit_ServiceDecl(self, node: nodes.ServiceDecl) -> None:
+        self._check_constraints(node.constraints, constraint_registry.SERVICE)
+        self.visit_children(node)
+
+    def visit_ActionDecl(self, node: nodes.ActionDecl) -> None:
+        self._check_constraints(node.constraints, constraint_registry.ACTION)
+        self.visit_children(node)
+
+
+def _installed_interfaces(package: str) -> Optional[Set[str]]:
+    """Names of the message/service/action types of an installed ROS package.
+
+    Returns None when ROS is not available, in which case types are not verified.
+    """
+    try:
+        from rosidl_runtime_py import get_interface_packages, get_interfaces  # type: ignore
+    except ImportError:
+        return None
+    try:
+        if package not in get_interface_packages():
+            return None
+        return {
+            name.split("/")[-1]
+            for names in [get_interfaces().get(package, [])]
+            for name in names
+        }
+    except Exception:  # a broken ROS install must not break compilation
+        return None

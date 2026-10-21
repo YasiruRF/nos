@@ -202,9 +202,14 @@ class StructInitializerExpression(Expression):
 
 @dataclass
 class Constraint(ASTNode):
-    """Constraint annotation: @range(0, 100)"""
+    """Constraint annotation: @range(0, 100), @qos(depth=5)
+
+    ``arguments`` holds every argument in source order (named ones included);
+    ``named_arguments`` additionally maps the ``key=value`` ones by key.
+    """
     name: str
     arguments: List[Expression] = field(default_factory=list)
+    named_arguments: Dict[str, Expression] = field(default_factory=dict)
 
 
 # =============================================================================
@@ -261,9 +266,9 @@ class ActionDecl(ASTNode):
 class QoSConfig(ASTNode):
     """QoS configuration: reliable, depth=10"""
     reliability: str = "reliable"  # 'reliable' or 'best_effort'
-    durability: Optional[str] = None
+    durability: Optional[str] = None  # 'volatile' or 'transient_local'
     depth: Optional[int] = None
-    history: Optional[str] = None
+    history: Optional[str] = None  # 'keep_last' or 'keep_all'
 
 
 @dataclass

@@ -575,6 +575,7 @@ class ASTBuilder:
                 name = self._get_text(id_ctx)
 
         args = []
+        named: Dict[str, nodes.Expression] = {}
         arg_list_ctx = ctx.argumentList() if hasattr(ctx, 'argumentList') and callable(ctx.argumentList) else None
         if arg_list_ctx is not None:
             # @name(arg, key=value, ...): positional and named arguments, in order
@@ -584,6 +585,9 @@ class ASTBuilder:
                     arg = self.visit_expression(expr_ctx)
                     if arg:
                         args.append(arg)
+                        key_ctx = arg_ctx.identifier()
+                        if key_ctx is not None:
+                            named[self._get_text(key_ctx)] = arg
         elif hasattr(ctx, 'expressionList') and callable(ctx.expressionList):
             el_ctx = ctx.expressionList()
             if el_ctx and hasattr(el_ctx, 'expression') and callable(el_ctx.expression):
@@ -611,8 +615,34 @@ class ASTBuilder:
         return nodes.Constraint(
             location=self._loc(ctx),
             name=name,
-            arguments=args
+            arguments=args,
+            named_arguments=named
         )
+
+    def _qos_from_constraints(self, constraints: List[nodes.Constraint]) -> Optional[nodes.QoSConfig]:
+        """Build a QoSConfig from ``@qos(reliability="best_effort", depth=5, ...)``."""
+        for constraint in constraints:
+            if constraint.name != "qos":
+                continue
+
+            def text(key: str) -> Optional[str]:
+                expr = constraint.named_arguments.get(key)
+                if isinstance(expr, nodes.LiteralExpression):
+                    return str(expr.value)
+                if isinstance(expr, nodes.IdentifierExpression):
+                    return expr.name
+                return None
+
+            depth_expr = constraint.named_arguments.get("depth")
+            depth = depth_expr.value if isinstance(depth_expr, nodes.LiteralExpression) else None
+            return nodes.QoSConfig(
+                location=constraint.location,
+                reliability=text("reliability") or "reliable",
+                durability=text("durability"),
+                depth=depth,
+                history=text("history"),
+            )
+        return None
 
     # ==========================================================================
     # Node Declarations
@@ -798,6 +828,7 @@ class ASTBuilder:
             name=name,
             message_type=msg_type,
             topic=topic,
+            qos=self._qos_from_constraints(constraints),
             constraints=constraints
         )
 
@@ -830,6 +861,7 @@ class ASTBuilder:
             name=name,
             message_type=msg_type,
             topic=topic,
+            qos=self._qos_from_constraints(constraints),
             constraints=constraints
         )
 
