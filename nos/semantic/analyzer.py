@@ -128,6 +128,8 @@ class SemanticAnalyzer(ASTVisitor):
         """
         self.diagnostics.clear()
 
+        self._reject_interface_declarations(ast)
+
         # Pass 1: Build symbol table
         self._build_symbols(ast)
 
@@ -139,6 +141,27 @@ class SemanticAnalyzer(ASTVisitor):
             symbol_table=self.symbol_table,
             diagnostics=self.diagnostics.copy()
         )
+
+    def _reject_interface_declarations(self, ast: nodes.ASTNode):
+        """Interface declarations parse but nothing generates .msg/.srv/.action yet."""
+        if not isinstance(ast, nodes.File):
+            return
+        for decl in ast.declarations:
+            if not isinstance(decl, nodes.InterfaceDecl):
+                continue
+            for item in decl.declarations:
+                kind = {
+                    nodes.MessageDecl: "message",
+                    nodes.ServiceInterfaceDecl: "service",
+                    nodes.ActionInterfaceDecl: "action",
+                }.get(type(item), "interface")
+                self._add_error(
+                    f"{kind.capitalize()} interface declarations are not supported yet "
+                    f"('{getattr(item, 'name', '')}'); define the {kind} in a ROS 2 "
+                    f"interface package and reference it with package::Type",
+                    item.location,
+                    "E010"
+                )
 
     def _add_error(self, message: str, location: nodes.SourceLocation, code: Optional[str] = None):
         """Add an error diagnostic."""

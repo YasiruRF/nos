@@ -236,9 +236,11 @@ class ASTBuilder:
         if hasattr(ctx, 'LIST') and ctx.LIST() is not None:
             element_type = None
             if hasattr(ctx, 'typeSpec') and callable(ctx.typeSpec):
-                child_types = ctx.typeSpec()
-                if child_types and len(child_types) > 0:
-                    element_type = self.visit_typeSpec(child_types[0])
+                # `list<T>` has exactly one nested typeSpec, which ANTLR returns
+                # as a single context rather than a list.
+                child_type = self._first(ctx.typeSpec())
+                if child_type is not None:
+                    element_type = self.visit_typeSpec(child_type)
             return nodes.ListType(
                 location=self._loc(ctx),
                 element_type=element_type
@@ -1405,29 +1407,19 @@ class ASTBuilder:
     # ==========================================================================
 
     def visit_InterfaceDecl(self, ctx) -> nodes.InterfaceDecl:
-        """Visit interface file root."""
+        """Visit an interface declaration (message, service or action).
+
+        ``interfaceDecl`` is a single-alternative rule, so exactly one of the
+        sub-contexts is present and ANTLR returns it directly (not a list).
+        """
         declarations = []
 
-        if hasattr(ctx, 'messageDecl') and callable(ctx.messageDecl):
-            for m_ctx in ctx.messageDecl():
-                if m_ctx:
-                    m = self.visit(m_ctx)
-                    if m:
-                        declarations.append(m)
-
-        if hasattr(ctx, 'serviceDecl_interface') and callable(ctx.serviceDecl_interface):
-            for s_ctx in ctx.serviceDecl_interface():
-                if s_ctx:
-                    s = self.visit(s_ctx)
-                    if s:
-                        declarations.append(s)
-
-        if hasattr(ctx, 'actionDecl_interface') and callable(ctx.actionDecl_interface):
-            for a_ctx in ctx.actionDecl_interface():
-                if a_ctx:
-                    a = self.visit(a_ctx)
-                    if a:
-                        declarations.append(a)
+        for accessor in ('messageDecl', 'serviceDecl_interface', 'actionDecl_interface'):
+            sub_ctx = self._first(getattr(ctx, accessor)()) if hasattr(ctx, accessor) else None
+            if sub_ctx is not None:
+                decl = self.visit(sub_ctx)
+                if decl:
+                    declarations.append(decl)
 
         return nodes.InterfaceDecl(
             location=self._loc(ctx),
@@ -1442,15 +1434,7 @@ class ASTBuilder:
             if id_ctx:
                 name = self._get_text(id_ctx)
 
-        msg_id = 0
-        if hasattr(ctx, 'ID') and ctx.ID() is not None:
-            # Get id from constraint or attribute
-            if hasattr(ctx, 'expression') and callable(ctx.expression):
-                expr_ctx = ctx.expression()
-                if expr_ctx:
-                    expr = self.visit_expression(expr_ctx)
-                    if isinstance(expr, nodes.LiteralExpression) and expr.literal_type == "int":
-                        msg_id = expr.value
+        msg_id = self._interface_id(ctx)
 
         fields = []
         if hasattr(ctx, 'fieldDecl') and callable(ctx.fieldDecl):
@@ -1475,14 +1459,7 @@ class ASTBuilder:
             if id_ctx:
                 name = self._get_text(id_ctx)
 
-        svc_id = 0
-        if hasattr(ctx, 'ID') and ctx.ID() is not None:
-            if hasattr(ctx, 'expression') and callable(ctx.expression):
-                expr_ctx = ctx.expression()
-                if expr_ctx:
-                    expr = self.visit_expression(expr_ctx)
-                    if isinstance(expr, nodes.LiteralExpression) and expr.literal_type == "int":
-                        svc_id = expr.value
+        svc_id = self._interface_id(ctx)
 
         request_fields = []
         response_fields = []
@@ -1521,14 +1498,7 @@ class ASTBuilder:
             if id_ctx:
                 name = self._get_text(id_ctx)
 
-        act_id = 0
-        if hasattr(ctx, 'ID') and ctx.ID() is not None:
-            if hasattr(ctx, 'expression') and callable(ctx.expression):
-                expr_ctx = ctx.expression()
-                if expr_ctx:
-                    expr = self.visit_expression(expr_ctx)
-                    if isinstance(expr, nodes.LiteralExpression) and expr.literal_type == "int":
-                        act_id = expr.value
+        act_id = self._interface_id(ctx)
 
         goal_fields = []
         feedback_fields = []
@@ -1573,6 +1543,18 @@ class ASTBuilder:
     # ==========================================================================
     # Helper Methods
     # ==========================================================================
+
+    @staticmethod
+    def _first(ctx_or_list):
+        """ANTLR returns a list for repeated sub-rules and a single context otherwise."""
+        if isinstance(ctx_or_list, list):
+            return ctx_or_list[0] if ctx_or_list else None
+        return ctx_or_list
+
+    def _interface_id(self, ctx) -> int:
+        """Value of ``@id(N)`` on an interface declaration."""
+        token = ctx.INT_LITERAL() if hasattr(ctx, 'INT_LITERAL') else None
+        return int(token.getText()) if token is not None else 0
 
     def _get_text(self, ctx) -> str:
         """Safely get text from a context."""
