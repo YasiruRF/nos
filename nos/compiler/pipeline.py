@@ -24,6 +24,7 @@ from ..ast import nodes
 from ..ast.builder import ASTBuilder
 from ..semantic import SemanticAnalyzer, AnalysisResult
 from ..codegen import PythonGenerator, LaunchTranspiler, GenerationOutput
+from ..codegen.naming import ros_package_name
 
 
 class NOSSyntaxError(Exception):
@@ -360,24 +361,7 @@ class CompilerPipeline:
 
     def _extract_package_name(self, ast: Optional[nodes.ASTNode]) -> str:
         """Extract a valid ROS2 package name from AST."""
-        candidate = "nos_generated"
-
-        if isinstance(ast, nodes.File):
-            if ast.package and ast.package.name:
-                candidate = ast.package.name
-            elif ast.declarations:
-                first_decl = ast.declarations[0]
-                if hasattr(first_decl, 'name') and getattr(first_decl, 'name'):
-                    candidate = getattr(first_decl, 'name')
-        elif ast and hasattr(ast, 'name') and getattr(ast, 'name'):
-            candidate = getattr(ast, 'name')
-
-        sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', candidate).lower()
-        if not sanitized:
-            sanitized = "nos_generated"
-        if sanitized[0].isdigit():
-            sanitized = f"nos_{sanitized}"
-        return sanitized
+        return ros_package_name(ast)
 
     def _compute_build_fingerprint(self, files: Dict[str, str], package_name: str) -> str:
         """Compute deterministic hash for generated outputs used by build cache."""
