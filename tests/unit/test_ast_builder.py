@@ -1,4 +1,5 @@
 """Unit tests for AST node classes and the AST builder."""
+
 """
 Tests cover:
     - SourceLocation creation and string representation
@@ -11,14 +12,26 @@ Run these tests:
 """
 
 import pytest
-from nos.ast.nodes import (
-    ASTNode, SourceLocation, File, PackageDecl, NodeDecl,
-    ParameterDecl, PrimitiveType, PrimitiveTypeKind,
-    LiteralExpression, IdentifierExpression, Constraint,
-    SubscriptionDecl, PublicationDecl, QualifiedType, LaunchDecl,
-    BinaryExpression
-)
+
 from nos.ast.builder import ASTBuilder
+from nos.ast.nodes import (
+    ASTNode,
+    BinaryExpression,
+    Constraint,
+    File,
+    IdentifierExpression,
+    LaunchDecl,
+    LiteralExpression,
+    NodeDecl,
+    PackageDecl,
+    ParameterDecl,
+    PrimitiveType,
+    PrimitiveTypeKind,
+    PublicationDecl,
+    QualifiedType,
+    SourceLocation,
+    SubscriptionDecl,
+)
 
 
 class TestSourceLocation:
@@ -41,10 +54,7 @@ class TestPackageDecl:
     def test_package_creation(self):
         loc = SourceLocation(1, 0, "test.node")
         package = PackageDecl(
-            location=loc,
-            name="robot_navigation",
-            version="1.0.0",
-            dependencies=["rclpy", "geometry_msgs"]
+            location=loc, name="robot_navigation", version="1.0.0", dependencies=["rclpy", "geometry_msgs"]
         )
         assert package.name == "robot_navigation"
         assert package.version == "1.0.0"
@@ -52,10 +62,7 @@ class TestPackageDecl:
 
     def test_package_no_version(self):
         loc = SourceLocation(1, 0, "test.node")
-        package = PackageDecl(
-            location=loc,
-            name="simple_pkg"
-        )
+        package = PackageDecl(location=loc, name="simple_pkg")
         assert package.name == "simple_pkg"
         assert package.version is None
 
@@ -75,7 +82,7 @@ class TestNodeDecl:
             actions=[],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
         assert node.name == "TestNode"
         assert len(node.parameters) == 0
@@ -86,7 +93,7 @@ class TestNodeDecl:
             location=loc,
             name="frame_id",
             type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.STRING),
-            default_value=LiteralExpression(location=loc, value="base_link", literal_type="string")
+            default_value=LiteralExpression(location=loc, value="base_link", literal_type="string"),
         )
         node = NodeDecl(
             location=loc,
@@ -98,7 +105,7 @@ class TestNodeDecl:
             actions=[],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
         assert len(node.parameters) == 1
         assert node.parameters[0].name == "frame_id"
@@ -114,15 +121,15 @@ class TestParameterDecl:
             name="range",
             arguments=[
                 LiteralExpression(location=loc, value=0.0, literal_type="float"),
-                LiteralExpression(location=loc, value=100.0, literal_type="float")
-            ]
+                LiteralExpression(location=loc, value=100.0, literal_type="float"),
+            ],
         )
         param = ParameterDecl(
             location=loc,
             name="speed",
             type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.FLOAT),
             default_value=LiteralExpression(location=loc, value=10.0, literal_type="float"),
-            constraints=[constraint]
+            constraints=[constraint],
         )
         assert param.name == "speed"
         assert len(param.constraints) == 1
@@ -140,7 +147,7 @@ class TestSubscriptionDecl:
             message_type=QualifiedType(location=loc, package="sensor_msgs", name="LaserScan"),
             topic=LiteralExpression(location=loc, value="/scan", literal_type="string"),
             qos=None,
-            constraints=[]
+            constraints=[],
         )
         assert sub.name == "scan"
         assert sub.message_type.name == "LaserScan"
@@ -156,11 +163,13 @@ class TestASTBuilder:
 
     def test_location_helper(self):
         builder = ASTBuilder("test.node")
+
         # Mock context object
         class MockCtx:
             class MockStart:
                 line = 5
                 column = 10
+
             start = MockStart()
 
         loc = builder._loc(MockCtx())
@@ -187,12 +196,7 @@ class TestExpressionNodes:
         loc = SourceLocation(1, 0, "test.node")
         left = LiteralExpression(location=loc, value=10, literal_type="int")
         right = LiteralExpression(location=loc, value=20, literal_type="int")
-        expr = BinaryExpression(
-            location=loc,
-            operator="+",
-            left=left,
-            right=right
-        )
+        expr = BinaryExpression(location=loc, operator="+", left=left, right=right)
         assert expr.operator == "+"
         assert expr.left.value == 10
         assert expr.right.value == 20
@@ -203,27 +207,12 @@ class TestFileNode:
 
     def test_empty_file(self):
         loc = SourceLocation(1, 0, "test.node")
-        file_node = File(
-            location=loc,
-            package=None,
-            imports=[],
-            declarations=[]
-        )
+        file_node = File(location=loc, package=None, imports=[], declarations=[])
         assert file_node.package is None
         assert len(file_node.declarations) == 0
 
     def test_file_with_package(self):
         loc = SourceLocation(1, 0, "test.node")
-        package = PackageDecl(
-            location=loc,
-            name="test_pkg",
-            version="1.0.0"
-        )
-        file_node = File(
-            location=loc,
-            package=package,
-            imports=[],
-            declarations=[]
-        )
+        package = PackageDecl(location=loc, name="test_pkg", version="1.0.0")
+        file_node = File(location=loc, package=package, imports=[], declarations=[])
         assert file_node.package.name == "test_pkg"
-

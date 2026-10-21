@@ -29,6 +29,7 @@ def load(monkeypatch, tmp_path):
         monkeypatch.setitem(sys.modules, spec.name, module)
         spec.loader.exec_module(module)
         return module, fake
+
     return _load
 
 
@@ -38,7 +39,7 @@ def test_publisher_node_instantiates(load):
     assert node.greeting == "hello"
     assert node.rate == 2.0
     assert node.retries == 3
-    assert ("publisher", ) == tuple(k for k, _ in node.entities[:1])
+    assert ("publisher",) == tuple(k for k, _ in node.entities[:1])
     assert any("talker up" in m for _, m in node.get_logger().records)
 
 
@@ -82,6 +83,7 @@ def test_plain_node_shutdown_hook_runs_from_main(load):
         def __init__(self, *a, **k):
             super().__init__(*a, **k)
             created.append(self)
+
     module.NBase = Spy
     module.main([])
     assert any("bye" in m for _, m in created[0].get_logger().records)

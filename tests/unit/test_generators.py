@@ -1,14 +1,28 @@
 """Unit tests for code generation and launch transpilation."""
 
 import pytest
+
 from nos.ast.nodes import (
-    SourceLocation, NodeDecl, ParameterDecl, PrimitiveType, PrimitiveTypeKind,
-    LiteralExpression, QualifiedType, SubscriptionDecl, PublicationDecl,
-    LaunchDecl, GroupDecl, NodeInstance, ContainerDecl, ComponentInstance,
-    IdentifierExpression, BinaryExpression, ActionDecl
+    ActionDecl,
+    BinaryExpression,
+    ComponentInstance,
+    ContainerDecl,
+    GroupDecl,
+    IdentifierExpression,
+    LaunchDecl,
+    LiteralExpression,
+    NodeDecl,
+    NodeInstance,
+    ParameterDecl,
+    PrimitiveType,
+    PrimitiveTypeKind,
+    PublicationDecl,
+    QualifiedType,
+    SourceLocation,
+    SubscriptionDecl,
 )
-from nos.semantic import SymbolTable, SemanticAnalyzer
-from nos.codegen import PythonGenerator, LaunchTranspiler, GenerationOutput
+from nos.codegen import GenerationOutput, LaunchTranspiler, PythonGenerator
+from nos.semantic import SemanticAnalyzer, SymbolTable
 
 
 class TestPythonGenerator:
@@ -16,7 +30,7 @@ class TestPythonGenerator:
 
     def test_generator_creation(self):
         gen = PythonGenerator()
-        assert gen.target == 'python'
+        assert gen.target == "python"
 
     def test_generate_simple_node(self):
         loc = SourceLocation(1, 0, "test.node")
@@ -30,7 +44,7 @@ class TestPythonGenerator:
             actions=[],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
 
         gen = PythonGenerator()
@@ -46,7 +60,7 @@ class TestPythonGenerator:
             location=loc,
             name="frame_id",
             type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.STRING),
-            default_value=LiteralExpression(location=loc, value="base", literal_type="string")
+            default_value=LiteralExpression(location=loc, value="base", literal_type="string"),
         )
         node = NodeDecl(
             location=loc,
@@ -58,7 +72,7 @@ class TestPythonGenerator:
             actions=[],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
 
         gen = PythonGenerator()
@@ -77,7 +91,7 @@ class TestPythonGenerator:
             message_type=QualifiedType(location=loc, package="sensor_msgs", name="LaserScan"),
             topic=LiteralExpression(location=loc, value="/scan", literal_type="string"),
             qos=None,
-            constraints=[]
+            constraints=[],
         )
         node = NodeDecl(
             location=loc,
@@ -89,7 +103,7 @@ class TestPythonGenerator:
             actions=[],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
 
         gen = PythonGenerator()
@@ -131,7 +145,7 @@ class TestLaunchTranspiler:
             containers=[],
             includes=[],
             lifecycle_manager=None,
-            events=[]
+            events=[],
         )
 
         trans = LaunchTranspiler()
@@ -143,17 +157,12 @@ class TestLaunchTranspiler:
 
     def test_generate_launch_with_group(self):
         loc = SourceLocation(1, 0, "test.node")
-        node = NodeInstance(
-            location=loc,
-            name="lidar",
-            node_type="LidarDriver",
-            parameters={}
-        )
+        node = NodeInstance(location=loc, name="lidar", node_type="LidarDriver", parameters={})
         group = GroupDecl(
             location=loc,
             name="sensors",
             namespace=LiteralExpression(location=loc, value="sensors", literal_type="string"),
-            nodes=[node]
+            nodes=[node],
         )
         launch = LaunchDecl(
             location=loc,
@@ -163,7 +172,7 @@ class TestLaunchTranspiler:
             containers=[],
             includes=[],
             lifecycle_manager=None,
-            events=[]
+            events=[],
         )
 
         trans = LaunchTranspiler()
@@ -176,17 +185,12 @@ class TestLaunchTranspiler:
 
     def test_generate_container(self):
         loc = SourceLocation(1, 0, "test.node")
-        comp = ComponentInstance(
-            location=loc,
-            name="processor",
-            component_type="ImageProcessor",
-            parameters={}
-        )
+        comp = ComponentInstance(location=loc, name="processor", component_type="ImageProcessor", parameters={})
         container = ContainerDecl(
             location=loc,
             name="PerceptionContainer",
             container_name=LiteralExpression(location=loc, value="perception_container", literal_type="string"),
-            components=[comp]
+            components=[comp],
         )
         launch = LaunchDecl(
             location=loc,
@@ -196,7 +200,7 @@ class TestLaunchTranspiler:
             containers=[container],
             includes=[],
             lifecycle_manager=None,
-            events=[]
+            events=[],
         )
 
         trans = LaunchTranspiler()
@@ -209,75 +213,84 @@ class TestLaunchTranspiler:
 
     def test_generate_launch_with_substitutions(self):
         """Test generating launch description with call expressions and interpolated configurations."""
-        from nos.ast.nodes import CallExpression, InterpolatedExpression, LiteralExpression, IdentifierExpression, ArgumentDecl, PrimitiveType, PrimitiveTypeKind
+        from nos.ast.nodes import (
+            ArgumentDecl,
+            CallExpression,
+            IdentifierExpression,
+            InterpolatedExpression,
+            LiteralExpression,
+            PrimitiveType,
+            PrimitiveTypeKind,
+        )
+
         loc = SourceLocation(1, 0, "test.node")
-        
+
         find_pkg = CallExpression(
             location=loc,
             callee=IdentifierExpression(location=loc, name="FindPackageShare"),
-            arguments=[LiteralExpression(location=loc, value="lecture4", literal_type="string")]
+            arguments=[LiteralExpression(location=loc, value="lecture4", literal_type="string")],
         )
-        
+
         path_join = CallExpression(
             location=loc,
             callee=IdentifierExpression(location=loc, name="PathJoinSubstitution"),
             arguments=[
                 find_pkg,
                 LiteralExpression(location=loc, value="urdf", literal_type="string"),
-                InterpolatedExpression(location=loc, inner=IdentifierExpression(location=loc, name="filename"))
-            ]
+                InterpolatedExpression(location=loc, inner=IdentifierExpression(location=loc, name="filename")),
+            ],
         )
-        
+
         command_call = CallExpression(
             location=loc,
             callee=IdentifierExpression(location=loc, name="Command"),
-            arguments=[
-                LiteralExpression(location=loc, value="xacro", literal_type="string"),
-                path_join
-            ]
+            arguments=[LiteralExpression(location=loc, value="xacro", literal_type="string"), path_join],
         )
-        
+
         node_instance = NodeInstance(
             location=loc,
             name="robot_state_publisher",
             node_type="RobotStatePublisher",
-            parameters={
-                "robot_description": command_call
-            },
-            condition=None
+            parameters={"robot_description": command_call},
+            condition=None,
         )
-        
+
         group = GroupDecl(
             location=loc,
             name="default_group",
             namespace=LiteralExpression(location=loc, value="", literal_type="string"),
-            nodes=[node_instance]
+            nodes=[node_instance],
         )
-        
+
         launch = LaunchDecl(
             location=loc,
             name="SubLaunch",
             arguments=[
-                ArgumentDecl(location=loc, name="filename", type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.STRING), default_value=LiteralExpression(location=loc, value="robot", literal_type="string"))
+                ArgumentDecl(
+                    location=loc,
+                    name="filename",
+                    type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.STRING),
+                    default_value=LiteralExpression(location=loc, value="robot", literal_type="string"),
+                )
             ],
             groups=[group],
             containers=[],
             includes=[],
             lifecycle_manager=None,
-            events=[]
+            events=[],
         )
-        
+
         trans = LaunchTranspiler()
         st = SymbolTable()
         output = trans.generate(launch, st)
-        
+
         code = output.files["sub_launch_launch.py"]
         import_line = next(l for l in code.splitlines() if l.startswith("from launch.substitutions import"))
         for name in ("LaunchConfiguration", "PathJoinSubstitution", "Command"):
             assert name in import_line
         assert "from launch_ros.substitutions import FindPackageShare" in code
         assert "filename = LaunchConfiguration('filename')" in code
-        assert "Command(\"xacro\", PathJoinSubstitution(FindPackageShare(\"lecture4\"), \"urdf\", filename))" in code
+        assert 'Command("xacro", PathJoinSubstitution(FindPackageShare("lecture4"), "urdf", filename))' in code
 
 
 class TestGenerationOutput:
@@ -363,7 +376,7 @@ class TestCodeGenerationEdgeCases:
             actions=[],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
 
         gen = PythonGenerator()
@@ -390,12 +403,12 @@ class TestCodeGenerationEdgeCases:
                     location=loc,
                     name="navigate",
                     action_type=QualifiedType(location=loc, package="nav2_msgs", name="NavigateToPose"),
-                    constraints=[]
+                    constraints=[],
                 )
             ],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
 
         gen = PythonGenerator()
@@ -412,6 +425,7 @@ class TestCodeGenerationEdgeCases:
     def test_clients_and_reentrant_generation(self):
         """Test code generation for service/action clients and reentrant callback groups."""
         from nos.ast.nodes import Constraint, ServiceDecl
+
         loc = SourceLocation(1, 0, "test.node")
         node = NodeDecl(
             location=loc,
@@ -424,7 +438,7 @@ class TestCodeGenerationEdgeCases:
                     message_type=QualifiedType(location=loc, package="std_msgs", name="String"),
                     topic=LiteralExpression(location=loc, value="/input", literal_type="string"),
                     qos=None,
-                    constraints=[Constraint(location=loc, name="reentrant", arguments=[])]
+                    constraints=[Constraint(location=loc, name="reentrant", arguments=[])],
                 )
             ],
             publications=[],
@@ -436,8 +450,8 @@ class TestCodeGenerationEdgeCases:
                     service_name=LiteralExpression(location=loc, value="/add", literal_type="string"),
                     constraints=[
                         Constraint(location=loc, name="client", arguments=[]),
-                        Constraint(location=loc, name="reentrant", arguments=[])
-                    ]
+                        Constraint(location=loc, name="reentrant", arguments=[]),
+                    ],
                 )
             ],
             actions=[
@@ -447,13 +461,13 @@ class TestCodeGenerationEdgeCases:
                     action_type=QualifiedType(location=loc, package="nav2_msgs", name="NavigateToPose"),
                     constraints=[
                         Constraint(location=loc, name="client", arguments=[]),
-                        Constraint(location=loc, name="reentrant", arguments=[])
-                    ]
+                        Constraint(location=loc, name="reentrant", arguments=[]),
+                    ],
                 )
             ],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
 
         gen = PythonGenerator()
@@ -465,15 +479,15 @@ class TestCodeGenerationEdgeCases:
         assert "from rclpy.action import ActionClient" in code
         assert "from example_interfaces.srv import AddTwoInts" in code
         assert "from nav2_msgs.action import NavigateToPose" in code
-        
+
         # Check reentrant group creation and usage
         assert "self._reentrant_group = ReentrantCallbackGroup()" in code
         assert "callback_group=self._reentrant_group" in code
-        
+
         # Check client creation
         assert "self.calc_client = self.create_client(" in code
         assert "self.nav_client = ActionClient(" in code
-        
+
         # Ensure no execute/request wrappers are generated for clients
         assert "def _on_nav_client_execute" not in code
         assert "def _calc_client_callback" not in code
@@ -481,6 +495,7 @@ class TestCodeGenerationEdgeCases:
     def test_action_server_with_validation_generation(self):
         """Test Action Server generation with user-defined goal and cancel callbacks."""
         from nos.ast.nodes import CallbackDecl
+
         loc = SourceLocation(1, 0, "test.node")
         node = NodeDecl(
             location=loc,
@@ -494,15 +509,15 @@ class TestCodeGenerationEdgeCases:
                     location=loc,
                     name="navigate",
                     action_type=QualifiedType(location=loc, package="nav2_msgs", name="NavigateToPose"),
-                    constraints=[]
+                    constraints=[],
                 )
             ],
             lifecycle=None,
             components=[],
             callbacks=[
                 CallbackDecl(location=loc, event="on_navigate_goal", parameters=[], body="pass"),
-                CallbackDecl(location=loc, event="on_navigate_cancel", parameters=[], body="pass")
-            ]
+                CallbackDecl(location=loc, event="on_navigate_cancel", parameters=[], body="pass"),
+            ],
         )
 
         gen = PythonGenerator()

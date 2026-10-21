@@ -28,24 +28,26 @@ def returned_actions_include(code: str, call_name: str) -> bool:
     appended = {
         n.value.args[0].id
         for n in ast.walk(tree)
-        if isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)
-        and isinstance(n.value.func, ast.Attribute) and n.value.func.attr == "append"
+        if isinstance(n, ast.Expr)
+        and isinstance(n.value, ast.Call)
+        and isinstance(n.value.func, ast.Attribute)
+        and n.value.func.attr == "append"
         and isinstance(n.value.args[0], ast.Name)
     }
     return bool(assigned) and all(name in appended for name in assigned)
 
 
-INCLUDE_ARGS = '''package a
+INCLUDE_ARGS = """package a
 launch L {
   include "other.launch.py" { args: { speed: 2 } }
 }
-'''
+"""
 
-INCLUDE_PLAIN = '''package a
+INCLUDE_PLAIN = """package a
 launch L {
   include "other.launch.py" { }
 }
-'''
+"""
 
 
 class TestInclude:
@@ -63,11 +65,11 @@ class TestInclude:
 
 
 class TestArguments:
-    SRC = '''package a
+    SRC = """package a
 launch L {
   arguments { speed: float = 1.5  name: string = "x" }
 }
-'''
+"""
 
     def test_arguments_are_returned_in_launch_description(self):
         code = compile_launch(self.SRC)
@@ -82,13 +84,13 @@ launch L {
 
 
 class TestPackageAndExecutableNames:
-    SRC = '''package my_pkg
+    SRC = """package my_pkg
 launch L {
   group g @namespace("ns") {
     x1: LidarDriver { parameters: { rate: 10 } }
   }
 }
-'''
+"""
 
     def test_uses_generated_package_and_entry_point(self):
         code = compile_launch(self.SRC)
@@ -101,22 +103,22 @@ launch L {
         assert 'PushRosNamespace("ns")' in code
 
     def test_imported_node_uses_its_package(self):
-        src = '''package my_pkg
+        src = """package my_pkg
 import other_pkg::Planner
 launch L {
   group g @namespace("ns") { p: Planner { } }
 }
-'''
+"""
         code = compile_launch(src)
         assert "package='other_pkg'" in code
         assert "executable='planner_node'" in code
 
     def test_lifecycle_manager_uses_real_package(self):
-        src = '''package a
+        src = """package a
 launch L {
   lifecycle mgr manager { manages: [x] }
 }
-'''
+"""
         code = compile_launch(src)
         assert "package='nav2_lifecycle_manager'" in code
         assert "package='lifecycle_manager'" not in code

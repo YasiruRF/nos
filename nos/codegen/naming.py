@@ -13,13 +13,13 @@ from ..ast import nodes
 
 def camel_to_snake(name: str) -> str:
     """Convert CamelCase to snake_case."""
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
 def sanitize_package_name(candidate: str) -> str:
     """Turn arbitrary text into a valid ROS 2 package name."""
-    sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', candidate).lower()
+    sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", candidate).lower()
     if not sanitized:
         return "nos_generated"
     if sanitized[0].isdigit():
@@ -36,9 +36,9 @@ def ros_package_name(ast: Optional[nodes.ASTNode]) -> str:
             candidate = ast.package.name
         elif ast.declarations:
             first_decl = ast.declarations[0]
-            if getattr(first_decl, 'name', None):
+            if getattr(first_decl, "name", None):
                 candidate = first_decl.name
-    elif ast is not None and getattr(ast, 'name', None):
+    elif ast is not None and getattr(ast, "name", None):
         candidate = ast.name
 
     return sanitize_package_name(candidate)

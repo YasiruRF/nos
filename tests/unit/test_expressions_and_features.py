@@ -12,25 +12,32 @@ FIXTURES = Path(__file__).parent.parent / "fixtures"
 
 def default_of(expr_source: str, type_name: str = "int") -> str:
     ast = CompilerPipeline()._parse_string(
-        f"package a\nnode N {{ parameters {{ y: {type_name} = {expr_source} }} }}", "t.node")
+        f"package a\nnode N {{ parameters {{ y: {type_name} = {expr_source} }} }}", "t.node"
+    )
     return PythonGenerator()._expression_to_python(ast.declarations[-1].parameters[0].default_value)
 
 
 class TestExpressions:
-    @pytest.mark.parametrize("source,expected", [
-        ("1 + 2 * 3", "(1 + (2 * 3))"),
-        ("(1 + 2) * 3", "((1 + 2) * 3)"),
-        ("10 - 4 - 3", "((10 - 4) - 3)"),
-        ("8 / 2 % 3", "((8 / 2) % 3)"),
-    ])
+    @pytest.mark.parametrize(
+        "source,expected",
+        [
+            ("1 + 2 * 3", "(1 + (2 * 3))"),
+            ("(1 + 2) * 3", "((1 + 2) * 3)"),
+            ("10 - 4 - 3", "((10 - 4) - 3)"),
+            ("8 / 2 % 3", "((8 / 2) % 3)"),
+        ],
+    )
     def test_arithmetic_keeps_operators_and_precedence(self, source, expected):
         assert default_of(source) == expected
 
-    @pytest.mark.parametrize("source,expected", [
-        ("1 < 2 || 3 >= 2", "((1 < 2) or (3 >= 2))"),
-        ("1 == 1 && 2 != 3", "((1 == 1) and (2 != 3))"),
-        ("!true && false", "((not True) and False)"),
-    ])
+    @pytest.mark.parametrize(
+        "source,expected",
+        [
+            ("1 < 2 || 3 >= 2", "((1 < 2) or (3 >= 2))"),
+            ("1 == 1 && 2 != 3", "((1 == 1) and (2 != 3))"),
+            ("!true && false", "((not True) and False)"),
+        ],
+    )
     def test_logic(self, source, expected):
         assert default_of(source, "bool") == expected
 

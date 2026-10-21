@@ -5,9 +5,8 @@ Generated nodes subclass :class:`NOSNode` (or :class:`NOSLifecycleNode` for
 callbacks.
 """
 
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 from rclpy.node import Node
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
-from rclpy.lifecycle import State
 
 
 class _LoggingMixin:

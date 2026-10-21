@@ -7,7 +7,11 @@ import threading
 import pytest
 
 from nos.codeblock.main import (
-    MAX_BODY_BYTES, PathError, confine, make_server, safe_filename,
+    MAX_BODY_BYTES,
+    PathError,
+    confine,
+    make_server,
+    safe_filename,
 )
 
 PROGRAM = 'package demo\nnode Talker { publications { p: std_msgs::String @topic("/p") } }\n'
@@ -81,10 +85,20 @@ class TestSave:
         assert status == 200 and data["success"]
         assert (tmp_path / "demo.node").read_text() == PROGRAM
 
-    @pytest.mark.parametrize("name", [
-        "/etc/cron.d/evil.node", "../escape.node", "sub/../../x.node", "a/b.node",
-        "..", "", "plain.txt", "~/.bashrc", "x\\y.node",
-    ])
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "/etc/cron.d/evil.node",
+            "../escape.node",
+            "sub/../../x.node",
+            "a/b.node",
+            "..",
+            "",
+            "plain.txt",
+            "~/.bashrc",
+            "x\\y.node",
+        ],
+    )
     def test_rejects_paths_outside_workdir(self, server, tmp_path, name):
         status, data = post(server, "/api/save", {"code": "x", "filename": name})
         assert status == 400 and not data["success"]
@@ -121,25 +135,29 @@ class TestRequestValidation:
         assert not (tmp_path / "a.node").exists()
 
     def test_wrong_token(self, server):
-        status, _ = post(server, "/api/save", {"code": "x", "filename": "a.node"},
-                         token=False, headers={"X-NOS-Token": "nope"})
+        status, _ = post(
+            server, "/api/save", {"code": "x", "filename": "a.node"}, token=False, headers={"X-NOS-Token": "nope"}
+        )
         assert status == 403
 
     def test_cross_site_origin(self, server, tmp_path):
-        status, _ = post(server, "/api/save", {"code": "x", "filename": "a.node"},
-                         headers={"Origin": "https://evil.example"})
+        status, _ = post(
+            server, "/api/save", {"code": "x", "filename": "a.node"}, headers={"Origin": "https://evil.example"}
+        )
         assert status == 403
         assert not (tmp_path / "a.node").exists()
 
     def test_same_origin_allowed(self, server):
         port = server.server_address[1]
-        status, _ = post(server, "/api/save", {"code": "x", "filename": "a.node"},
-                         headers={"Origin": f"http://127.0.0.1:{port}"})
+        status, _ = post(
+            server, "/api/save", {"code": "x", "filename": "a.node"}, headers={"Origin": f"http://127.0.0.1:{port}"}
+        )
         assert status == 200
 
     def test_requires_json_content_type(self, server):
-        status, _ = post(server, "/api/save", {"code": "x", "filename": "a.node"},
-                         headers={"Content-Type": "text/plain"})
+        status, _ = post(
+            server, "/api/save", {"code": "x", "filename": "a.node"}, headers={"Content-Type": "text/plain"}
+        )
         assert status == 415
 
     def test_invalid_json(self, server):

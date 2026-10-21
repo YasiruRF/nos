@@ -8,7 +8,7 @@ import pytest
 
 from nos.compiler.main import main
 
-PROGRAM = 'package demo\nnode Talker { }\n'
+PROGRAM = "package demo\nnode Talker { }\n"
 
 
 @pytest.mark.parametrize("name", ["foo.nos", "FOO.NOS"])
@@ -38,16 +38,17 @@ def test_node_extension_accepted_case_insensitively(tmp_path, name):
 def test_no_nos_extension_left_in_the_repo():
     root = Path(__file__).resolve().parents[2]
     allowed = {
-        "CHANGELOG.md",                       # history
-        "tests/unit/test_extensions.py",      # this test
-        "nos/compiler/main.py",               # the deliberate rejection
-        "README.md",                          # documents the removal
-        "ros2_dsl_architecture.md",           # hypothetical CMakeLists.txt.nos design sketch
+        "CHANGELOG.md",  # history
+        "tests/unit/test_extensions.py",  # this test
+        "nos/compiler/main.py",  # the deliberate rejection
+        "README.md",  # documents the removal
+        "ros2_dsl_architecture.md",  # hypothetical CMakeLists.txt.nos design sketch
     }
     allowed_prefixes = ("nos/extensions/vscode-nos/",)  # TextMate scope names (source.nos)
     out = subprocess.run(
-        ["git", "grep", "-nI", r"\.nos\b", "--", ".", ":!nos/grammar"],
-        cwd=root, capture_output=True, text=True).stdout
-    offenders = [line for line in out.splitlines() if line.split(":")[0] not in allowed
-                 and not line.startswith(allowed_prefixes)]
+        ["git", "grep", "-nI", r"\.nos\b", "--", ".", ":!nos/grammar"], cwd=root, capture_output=True, text=True
+    ).stdout
+    offenders = [
+        line for line in out.splitlines() if line.split(":")[0] not in allowed and not line.startswith(allowed_prefixes)
+    ]
     assert not offenders, "\n".join(offenders)

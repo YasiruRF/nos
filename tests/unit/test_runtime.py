@@ -17,6 +17,7 @@ def rt(monkeypatch):
 
 def types_ns(**kw):
     import types
+
     return types.SimpleNamespace(**kw)
 
 
@@ -39,9 +40,15 @@ class TestCreateQosProfile:
 
     def test_all_values(self, rt):
         q = rt.qos.create_qos_profile(
-            reliability="best_effort", durability="transient_local", history="keep_all",
-            depth=3, lifespan=1.5, deadline=2.0, liveliness="manual_by_topic",
-            liveliness_lease_duration=4.0)
+            reliability="best_effort",
+            durability="transient_local",
+            history="keep_all",
+            depth=3,
+            lifespan=1.5,
+            deadline=2.0,
+            liveliness="manual_by_topic",
+            liveliness_lease_duration=4.0,
+        )
         assert q.reliability is fake_rclpy.ReliabilityPolicy.BEST_EFFORT
         assert q.durability is fake_rclpy.DurabilityPolicy.TRANSIENT_LOCAL
         assert q.history is fake_rclpy.HistoryPolicy.KEEP_ALL
@@ -50,11 +57,21 @@ class TestCreateQosProfile:
         assert q.liveliness is fake_rclpy.LivelinessPolicy.MANUAL_BY_TOPIC
         assert q.liveliness_lease_duration.seconds == 4.0
 
-    @pytest.mark.parametrize("kwargs", [
-        {"reliability": "relieable"}, {"reliability": None}, {"durability": "forever"},
-        {"history": "keep_some"}, {"liveliness": "sometimes"},
-        {"depth": 0}, {"depth": -1}, {"depth": "5"}, {"depth": True}, {"depth": 2.5},
-    ])
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"reliability": "relieable"},
+            {"reliability": None},
+            {"durability": "forever"},
+            {"history": "keep_some"},
+            {"liveliness": "sometimes"},
+            {"depth": 0},
+            {"depth": -1},
+            {"depth": "5"},
+            {"depth": True},
+            {"depth": 2.5},
+        ],
+    )
     def test_invalid_values_raise(self, rt, kwargs):
         with pytest.raises(ValueError):
             rt.qos.create_qos_profile(**kwargs)
@@ -63,13 +80,16 @@ class TestCreateQosProfile:
         with pytest.raises(ValueError, match="best_effort, reliable"):
             rt.qos.create_qos_profile(reliability="relieable")
 
-    @pytest.mark.parametrize("factory,reliability,durability,depth", [
-        ("reliable_qos", "RELIABLE", "VOLATILE", 10),
-        ("best_effort_qos", "BEST_EFFORT", "VOLATILE", 10),
-        ("sensor_qos", "BEST_EFFORT", "VOLATILE", 10),
-        ("parameter_qos", "RELIABLE", "VOLATILE", 1),
-        ("latching_qos", "RELIABLE", "TRANSIENT_LOCAL", 1),
-    ])
+    @pytest.mark.parametrize(
+        "factory,reliability,durability,depth",
+        [
+            ("reliable_qos", "RELIABLE", "VOLATILE", 10),
+            ("best_effort_qos", "BEST_EFFORT", "VOLATILE", 10),
+            ("sensor_qos", "BEST_EFFORT", "VOLATILE", 10),
+            ("parameter_qos", "RELIABLE", "VOLATILE", 1),
+            ("latching_qos", "RELIABLE", "TRANSIENT_LOCAL", 1),
+        ],
+    )
     def test_presets(self, rt, factory, reliability, durability, depth):
         q = getattr(rt.qos, factory)()
         assert q.reliability.name == reliability

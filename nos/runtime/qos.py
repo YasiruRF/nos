@@ -3,30 +3,28 @@
 Provides convenient creation of common QoS profiles.
 """
 
-from rclpy.duration import Duration
-from rclpy.qos import (
-    QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy, LivelinessPolicy,
-)
 from typing import Optional
 
+from rclpy.duration import Duration
+from rclpy.qos import (
+    DurabilityPolicy,
+    HistoryPolicy,
+    LivelinessPolicy,
+    QoSProfile,
+    ReliabilityPolicy,
+)
 
-_RELIABILITY = {"reliable": ReliabilityPolicy.RELIABLE,
-                "best_effort": ReliabilityPolicy.BEST_EFFORT}
-_DURABILITY = {"volatile": DurabilityPolicy.VOLATILE,
-               "transient_local": DurabilityPolicy.TRANSIENT_LOCAL}
-_HISTORY = {"keep_last": HistoryPolicy.KEEP_LAST,
-            "keep_all": HistoryPolicy.KEEP_ALL}
-_LIVELINESS = {"automatic": LivelinessPolicy.AUTOMATIC,
-               "manual_by_topic": LivelinessPolicy.MANUAL_BY_TOPIC}
+_RELIABILITY = {"reliable": ReliabilityPolicy.RELIABLE, "best_effort": ReliabilityPolicy.BEST_EFFORT}
+_DURABILITY = {"volatile": DurabilityPolicy.VOLATILE, "transient_local": DurabilityPolicy.TRANSIENT_LOCAL}
+_HISTORY = {"keep_last": HistoryPolicy.KEEP_LAST, "keep_all": HistoryPolicy.KEEP_ALL}
+_LIVELINESS = {"automatic": LivelinessPolicy.AUTOMATIC, "manual_by_topic": LivelinessPolicy.MANUAL_BY_TOPIC}
 
 
 def _lookup(kind: str, table: dict, value: str):
     try:
         return table[value]
     except (KeyError, TypeError):
-        raise ValueError(
-            f"invalid QoS {kind} {value!r}; expected one of: {', '.join(sorted(table))}"
-        ) from None
+        raise ValueError(f"invalid QoS {kind} {value!r}; expected one of: {', '.join(sorted(table))}") from None
 
 
 def create_qos_profile(
@@ -37,7 +35,7 @@ def create_qos_profile(
     lifespan: Optional[float] = None,
     deadline: Optional[float] = None,
     liveliness: Optional[str] = None,
-    liveliness_lease_duration: Optional[float] = None
+    liveliness_lease_duration: Optional[float] = None,
 ) -> QoSProfile:
     """Create a QoS profile with common settings.
 
@@ -64,12 +62,7 @@ def create_qos_profile(
     if isinstance(depth, bool) or not isinstance(depth, int) or depth < 1:
         raise ValueError(f"invalid QoS depth {depth!r}; expected a positive integer")
 
-    qos = QoSProfile(
-        reliability=reliability_policy,
-        durability=durability_policy,
-        history=history_policy,
-        depth=depth
-    )
+    qos = QoSProfile(reliability=reliability_policy, durability=durability_policy, history=history_policy, depth=depth)
 
     if lifespan is not None:
         qos.lifespan = Duration(seconds=lifespan)
@@ -98,26 +91,14 @@ def best_effort_qos(depth: int = 10) -> QoSProfile:
 
 def sensor_qos(depth: int = 10) -> QoSProfile:
     """Create a sensor data QoS profile (best effort)."""
-    return create_qos_profile(
-        reliability="best_effort",
-        durability="volatile",
-        depth=depth
-    )
+    return create_qos_profile(reliability="best_effort", durability="volatile", depth=depth)
 
 
 def parameter_qos() -> QoSProfile:
     """Create a parameter service QoS profile."""
-    return create_qos_profile(
-        reliability="reliable",
-        durability="volatile",
-        depth=1
-    )
+    return create_qos_profile(reliability="reliable", durability="volatile", depth=1)
 
 
 def latching_qos() -> QoSProfile:
     """Create a latching QoS profile (transient_local)."""
-    return create_qos_profile(
-        reliability="reliable",
-        durability="transient_local",
-        depth=1
-    )
+    return create_qos_profile(reliability="reliable", durability="transient_local", depth=1)

@@ -58,8 +58,7 @@ def confine(base: Path, candidate: str) -> Path:
 
 def safe_filename(name: str) -> str:
     """A bare ``*.node`` file name: no directories, no absolute paths, no traversal."""
-    if (not name or name != Path(name).name or name in (".", "..")
-            or "\\" in name or "\x00" in name):
+    if not name or name != Path(name).name or name in (".", "..") or "\\" in name or "\x00" in name:
         raise PathError(f"invalid file name: {name!r}")
     if not name.endswith(SOURCE_SUFFIX):
         raise PathError(f"file name must end with {SOURCE_SUFFIX}")
@@ -207,8 +206,9 @@ class CodeBlockHandler(http.server.BaseHTTPRequestHandler):
         self._send_json(200, {"success": True, "path": str(out_dir)})
 
 
-def make_server(port: int = DEFAULT_PORT, workdir: Optional[Path] = None,
-                host: str = "127.0.0.1") -> http.server.HTTPServer:
+def make_server(
+    port: int = DEFAULT_PORT, workdir: Optional[Path] = None, host: str = "127.0.0.1"
+) -> http.server.HTTPServer:
     """Create (but do not start) the editor server.
 
     Binds to ``host`` only; if ``port`` is taken, an ephemeral port is used.
@@ -251,5 +251,5 @@ def main(argv: Optional[list] = None) -> int:
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

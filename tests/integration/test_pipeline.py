@@ -1,13 +1,11 @@
 """Integration tests for the NOS compiler pipeline."""
 
 import pytest
-from nos.ast.nodes import (
-    SourceLocation, File, PackageDecl, ImportDecl, NodeDecl, LaunchDecl,
-    LiteralExpression
-)
+
+from nos.ast.nodes import File, ImportDecl, LaunchDecl, LiteralExpression, NodeDecl, PackageDecl, SourceLocation
+from nos.codegen import LaunchTranspiler, PythonGenerator
+from nos.compiler.pipeline import CompilationResult, CompilerPipeline
 from nos.semantic import SemanticAnalyzer, SymbolTable
-from nos.codegen import PythonGenerator, LaunchTranspiler
-from nos.compiler.pipeline import CompilerPipeline, CompilationResult
 
 
 class TestCompilerPipeline:
@@ -15,15 +13,12 @@ class TestCompilerPipeline:
 
     def test_pipeline_creation(self):
         pipeline = CompilerPipeline()
-        assert pipeline.target == 'python'
+        assert pipeline.target == "python"
         assert pipeline.verbose is False
 
     def test_pipeline_with_options(self):
-        pipeline = CompilerPipeline({
-            'target': 'cpp',
-            'verbose': True
-        })
-        assert pipeline.target == 'cpp'
+        pipeline = CompilerPipeline({"target": "cpp", "verbose": True})
+        assert pipeline.target == "cpp"
         assert pipeline.verbose is True
 
     def test_compile_empty_ast(self):
@@ -32,12 +27,7 @@ class TestCompilerPipeline:
         loc = SourceLocation(1, 0, "test.node")
 
         # Create minimal AST
-        file_node = File(
-            location=loc,
-            package=None,
-            imports=[],
-            declarations=[]
-        )
+        file_node = File(location=loc, package=None, imports=[], declarations=[])
 
         result = pipeline.compile_string("", "test.node")
         assert isinstance(result, CompilationResult)
@@ -48,10 +38,7 @@ class TestEndToEndFlow:
 
     def test_node_to_python_pipeline(self):
         """Full pipeline: Node AST -> Analysis -> Python Code."""
-        from nos.ast.nodes import (
-            ParameterDecl, PrimitiveType, PrimitiveTypeKind,
-            LiteralExpression, CallbackDecl
-        )
+        from nos.ast.nodes import CallbackDecl, LiteralExpression, ParameterDecl, PrimitiveType, PrimitiveTypeKind
 
         # 1. Create AST
         loc = SourceLocation(1, 0, "test.node")
@@ -59,14 +46,9 @@ class TestEndToEndFlow:
             location=loc,
             name="test_param",
             type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.STRING),
-            default_value=LiteralExpression(location=loc, value="default", literal_type="string")
+            default_value=LiteralExpression(location=loc, value="default", literal_type="string"),
         )
-        callback = CallbackDecl(
-            location=loc,
-            event="on_init",
-            parameters=[],
-            body="self.get_logger().info('Hello')"
-        )
+        callback = CallbackDecl(location=loc, event="on_init", parameters=[], body="self.get_logger().info('Hello')")
         node = NodeDecl(
             location=loc,
             name="TestNode",
@@ -77,7 +59,7 @@ class TestEndToEndFlow:
             actions=[],
             lifecycle=None,
             components=[],
-            callbacks=[callback]
+            callbacks=[callback],
         )
 
         # 2. Analyze
@@ -106,7 +88,7 @@ class TestEndToEndFlow:
             location=loc,
             name="test_arg",
             type=PrimitiveType(location=loc, kind=PrimitiveTypeKind.STRING),
-            default_value=LiteralExpression(location=loc, value="value", literal_type="string")
+            default_value=LiteralExpression(location=loc, value="value", literal_type="string"),
         )
         launch = LaunchDecl(
             location=loc,
@@ -116,7 +98,7 @@ class TestEndToEndFlow:
             containers=[],
             includes=[],
             lifecycle_manager=None,
-            events=[]
+            events=[],
         )
 
         # 2. Analyze
@@ -139,8 +121,8 @@ class TestErrorHandling:
 
     def test_undefined_reference_detection(self):
         """Test detection of undefined references."""
-        from nos.semantic.analyzer import ReferenceResolver
         from nos.ast.nodes import IdentifierExpression
+        from nos.semantic.analyzer import ReferenceResolver
 
         loc = SourceLocation(10, 5, "test.node")
         symbol_table = SymbolTable()
@@ -184,7 +166,7 @@ class TestMultiFileCompilation:
                 actions=[],
                 lifecycle=None,
                 components=[],
-                callbacks=[]
+                callbacks=[],
             )
             nodes.append(node)
 
@@ -202,7 +184,7 @@ class TestRoundTrip:
 
     def test_node_structure_preservation(self):
         """Test that node structure is preserved through pipeline."""
-        from nos.ast.nodes import SubscriptionDecl, QualifiedType
+        from nos.ast.nodes import QualifiedType, SubscriptionDecl
 
         loc = SourceLocation(1, 0, "test.node")
 
@@ -212,7 +194,7 @@ class TestRoundTrip:
             message_type=QualifiedType(location=loc, package="std_msgs", name="String"),
             topic=LiteralExpression(location=loc, value="/input", literal_type="string"),
             qos=None,
-            constraints=[]
+            constraints=[],
         )
         node = NodeDecl(
             location=loc,
@@ -224,7 +206,7 @@ class TestRoundTrip:
             actions=[],
             lifecycle=None,
             components=[],
-            callbacks=[]
+            callbacks=[],
         )
 
         # Verify structure before

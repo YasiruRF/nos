@@ -5,6 +5,7 @@ Subclass to implement specific AST transformations or analysis.
 """
 
 from typing import Any, List
+
 from . import nodes
 
 
@@ -27,7 +28,7 @@ class ASTVisitor:
         """Visit all child nodes and return results."""
         results = []
         for field_name, field_value in node.__dict__.items():
-            if field_name == 'location':
+            if field_name == "location":
                 continue
             if isinstance(field_value, nodes.ASTNode):
                 results.append(self.visit(field_value))

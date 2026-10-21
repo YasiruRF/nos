@@ -31,8 +31,7 @@ class TestListTypes:
         assert t.element_type.element_type.kind == nodes.PrimitiveTypeKind.FLOAT
 
     def test_list_of_qualified_type(self):
-        node = only_node(parse(
-            "package a\nnode N { parameters { ps: list<geometry_msgs::Point> = [] } }"))
+        node = only_node(parse("package a\nnode N { parameters { ps: list<geometry_msgs::Point> = [] } }"))
         elem = node.parameters[0].type.element_type
         assert isinstance(elem, nodes.QualifiedType)
         assert (elem.package, elem.name) == ("geometry_msgs", "Point")
@@ -42,13 +41,11 @@ class TestListTypes:
         assert isinstance(node.callbacks[0].parameters[0].type, nodes.ListType)
 
     def test_struct_field_list(self):
-        node = only_node(parse(
-            "package a\nnode N { parameters { s: struct { xs: list<int> } } }"))
+        node = only_node(parse("package a\nnode N { parameters { s: struct { xs: list<int> } } }"))
         assert isinstance(node.parameters[0].type.fields[0].type, nodes.ListType)
 
     def test_list_codegen_is_valid_python(self):
-        result = CompilerPipeline().compile_string(
-            "package a\nnode N { on foo(x: list<float>) -> { pass } }", "t.node")
+        result = CompilerPipeline().compile_string("package a\nnode N { on foo(x: list<float>) -> { pass } }", "t.node")
         assert result.success, result.errors
         code = result.files["n_node.py"]
         assert "x: List[float]" in code
@@ -64,8 +61,7 @@ action A @id(3) { goal { a: int } feedback { b: int } result { c: int } }
 
     def interfaces(self):
         ast = parse(self.SRC)
-        return [i for d in ast.declarations if isinstance(d, nodes.InterfaceDecl)
-                for i in d.declarations]
+        return [i for d in ast.declarations if isinstance(d, nodes.InterfaceDecl) for i in d.declarations]
 
     def test_parses_all_three_kinds(self):
         msg, srv, act = self.interfaces()

@@ -7,7 +7,7 @@ import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from ..ast import nodes
 from ..semantic import SymbolTable
@@ -22,6 +22,7 @@ class GenerationOutput:
         metadata: Build configuration and metadata
         security_errors: Security violations found during generation
     """
+
     files: Dict[str, str] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
     security_errors: List[str] = field(default_factory=list)
@@ -61,13 +62,12 @@ class CodeGenerator(ABC):
     def _indent(self, text: str, level: int = 1) -> str:
         """Indent text by level * 4 spaces."""
         indent = "    " * level
-        return "\n".join(indent + line if line.strip() else line
-                        for line in text.split("\n"))
+        return "\n".join(indent + line if line.strip() else line for line in text.split("\n"))
 
     def _camel_to_snake(self, name: str) -> str:
         """Convert CamelCase to snake_case."""
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+        return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
     def _reserved_keywords(self) -> set:
         """Get reserved keywords for the target language."""
@@ -79,8 +79,7 @@ class CodeGenerator(ABC):
             return f"{name}_"
         return name
 
-    _DURATION_UNITS = {"s": "seconds", "ms": "milliseconds",
-                       "us": "microseconds", "ns": "nanoseconds"}
+    _DURATION_UNITS = {"s": "seconds", "ms": "milliseconds", "us": "microseconds", "ns": "nanoseconds"}
     _OPERATOR_MAP = {"&&": "and", "||": "or"}
 
     def _expression_to_python(self, expr: Optional[nodes.Expression]) -> str:
@@ -135,8 +134,7 @@ class CodeGenerator(ABC):
             return "[" + ", ".join(self._expression_to_python(e) for e in expr.elements) + "]"
 
         if isinstance(expr, nodes.StructInitializerExpression):
-            items = ", ".join(f"{json.dumps(k)}: {self._expression_to_python(v)}"
-                              for k, v in expr.fields.items())
+            items = ", ".join(f"{json.dumps(k)}: {self._expression_to_python(v)}" for k, v in expr.fields.items())
             return "{" + items + "}"
 
         return str(expr)

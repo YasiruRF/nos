@@ -16,31 +16,32 @@ def codes(source: str):
 
 
 CASES = {
-    "E001": 'package a\nnode N { }\nnode N { }',
-    "E002": 'package a\nnode N { parameters { x: int = 1\n x: int = 2 } }',
-    "E003": 'package a\nlaunch L { }\nlaunch L { }',
-    "E004": 'package a\nlaunch L { arguments { x: int = 1\n x: int = 2 } }',
-    "E005": 'package a\nnode N { parameters { x: int = missing } }',
-    "E006": 'package a\nnode N { parameters { s: struct { a: int = 1 }\n y: int = s.zz } }',
+    "E001": "package a\nnode N { }\nnode N { }",
+    "E002": "package a\nnode N { parameters { x: int = 1\n x: int = 2 } }",
+    "E003": "package a\nlaunch L { }\nlaunch L { }",
+    "E004": "package a\nlaunch L { arguments { x: int = 1\n x: int = 2 } }",
+    "E005": "package a\nnode N { parameters { x: int = missing } }",
+    "E006": "package a\nnode N { parameters { s: struct { a: int = 1 }\n y: int = s.zz } }",
     "E008": 'package a\nnode N { publications { p: nope_msgs::T @topic("/x") } }',
-    "E010": 'package a\nmessage M @id(1) { x: int }',
-    "E011": 'package a\nnode N { on_init -> { pass }\n on_init -> { pass } }',
-    "E012": 'package a\nnode N { parameters { x: int = 1 @client } }',
+    "E010": "package a\nmessage M @id(1) { x: int }",
+    "E011": "package a\nnode N { on_init -> { pass }\n on_init -> { pass } }",
+    "E012": "package a\nnode N { parameters { x: int = 1 @client } }",
     "E013": 'package a\nnode N { subscriptions { s: std_msgs::String @topic("/x") @qos(depth=0) } }',
-    "E014": 'package a\nnode N { parameters { x: int = 1 @range(3, 2) } }',
+    "E014": "package a\nnode N { parameters { x: int = 1 @range(3, 2) } }",
     "E015": 'package a\nnode N { parameters { x: int = "text" } }',
     "W001": 'package a\nnode N { subscriptions { s: std_msgs::String @topic("/x")\n s: std_msgs::String @topic("/y") } }',
     "W002": 'package a\nnode N { publications { p: std_msgs::String @topic("/x")\n p: std_msgs::String @topic("/y") } }',
     "W003": 'package a\nnode N { services { s: std_srvs::Trigger @service("/x")\n s: std_srvs::Trigger @service("/y") } }',
-    "W004": 'package a\nnode N { actions { s: nav2_msgs::NavigateToPose\n s: nav2_msgs::NavigateToPose } }'.replace(
-        "package a", 'package a depends: ["nav2_msgs"]'),
-    "W005": 'package a\nnode N { components { c: X { }\n c: Y { } } }',
-    "W009": 'package a\nimport std_msgs::String\nimport std_msgs::String',
-    "W020": 'package a\nnode N { parameters { x: int = 1 @bogus } }',
+    "W004": "package a\nnode N { actions { s: nav2_msgs::NavigateToPose\n s: nav2_msgs::NavigateToPose } }".replace(
+        "package a", 'package a depends: ["nav2_msgs"]'
+    ),
+    "W005": "package a\nnode N { components { c: X { }\n c: Y { } } }",
+    "W009": "package a\nimport std_msgs::String\nimport std_msgs::String",
+    "W020": "package a\nnode N { parameters { x: int = 1 @bogus } }",
     "W022": 'package a\nnode N { publications { p: Twist @topic("/x") } }',
     "W023": 'package a\nlaunch L { on "ev" { n.enabled = true } }',
-    "W024": 'package a\nlaunch L { lifecycle m manager { manages: [x]\n transitions: { { from: a, to: b } } } }',
-    "W025": 'package a\nnode N { components { c: X { } } }',
+    "W024": "package a\nlaunch L { lifecycle m manager { manages: [x]\n transitions: { { from: a, to: b } } } }",
+    "W025": "package a\nnode N { components { c: X { } } }",
 }
 
 

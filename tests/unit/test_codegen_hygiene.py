@@ -23,19 +23,18 @@ def node_source(result) -> str:
 
 
 def pyflakes(code: str) -> str:
-    proc = subprocess.run([sys.executable, "-m", "pyflakes"], input=code,
-                          capture_output=True, text=True)
+    proc = subprocess.run([sys.executable, "-m", "pyflakes"], input=code, capture_output=True, text=True)
     return proc.stdout + proc.stderr
 
 
 class TestLifecycle:
-    SRC = '''package a
+    SRC = """package a
 node N {
   publications { p: std_msgs::String @topic("/p") }
   lifecycle: managed
   on_shutdown -> { self.get_logger().info("bye") }
 }
-'''
+"""
 
     def methods(self, code):
         tree = ast.parse(code)
@@ -54,7 +53,7 @@ node N {
 
     def test_communications_created_once_in_configure(self):
         code = node_source(compile_ok(self.SRC))
-        init = code[code.index("def __init__"):code.index("def _declare_nos_parameters")]
+        init = code[code.index("def __init__") : code.index("def _declare_nos_parameters")]
         assert "_setup_communications" not in init
         assert "def on_configure" in code
         assert "def on_cleanup" in code
@@ -76,7 +75,7 @@ node N {
 
 class TestImports:
     def test_pyflakes_clean_for_complex_node(self):
-        src = '''package a
+        src = """package a
 node N {
   parameters {
     d: duration = 5s
@@ -88,13 +87,12 @@ node N {
   services { c: std_srvs::Trigger @service("/t") @client }
   on go(y: geometry_msgs::Point) -> { pass }
 }
-'''
+"""
         code = node_source(compile_ok(src))
         assert pyflakes(code) == ""
 
     def test_no_wildcard_imports(self):
-        code = node_source(compile_ok(
-            'package a\nnode N { publications { p: std_msgs::String @topic("/p") } }'))
+        code = node_source(compile_ok('package a\nnode N { publications { p: std_msgs::String @topic("/p") } }'))
         assert "import *" not in code
         assert "from std_msgs.msg import String" in code
 
@@ -109,35 +107,36 @@ node N {
         assert "from rclpy.duration import Duration" in code
 
     def test_reentrant_uses_multithreaded_executor(self):
-        code = node_source(compile_ok(
-            'package a\nnode N { subscriptions { s: std_msgs::String @topic("/s") @reentrant } }'))
+        code = node_source(
+            compile_ok('package a\nnode N { subscriptions { s: std_msgs::String @topic("/s") @reentrant } }')
+        )
         assert "MultiThreadedExecutor()" in code
         assert "from rclpy.executors import MultiThreadedExecutor" in code
 
 
 class TestIdentifiers:
     def test_keyword_parameter_name(self):
-        src = 'package a\nnode N { parameters { class: int = 1  lambda: int = 2 } }'
+        src = "package a\nnode N { parameters { class: int = 1  lambda: int = 2 } }"
         code = node_source(compile_ok(src))
         assert "def class_(self)" in code
         assert "get_parameter('class')" in code
 
     def test_range_bounds_are_expressions_not_source_strings(self):
-        src = 'package a\nnode N { parameters { n: int = 1 @range(0, 5) } }'
+        src = "package a\nnode N { parameters { n: int = 1 @range(0, 5) } }"
         code = node_source(compile_ok(src))
         assert "IntegerRange(from_value=int(0), to_value=int(5))" in code
 
     def test_string_literal_with_quotes_stays_valid(self):
-        src = r'package a' + "\n" + r'node N { parameters { s: string = "a\"b\\c" } }'
+        src = r"package a" + "\n" + r'node N { parameters { s: string = "a\"b\\c" } }'
         compile_ok(src)
 
 
 class TestSecurityErrors:
     def test_errors_from_every_node_are_reported(self):
-        src = '''package a
+        src = """package a
 node A { on_init -> { import os } }
 node B { on_init -> { import sys } }
-'''
+"""
         result = CompilerPipeline().compile_string(src, "t.node")
         assert not result.success
         text = "\n".join(result.errors)

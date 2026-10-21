@@ -11,6 +11,7 @@ Example:
 """
 
 import pytest
+
 from nos.ast.nodes import SourceLocation
 
 
@@ -29,6 +30,7 @@ def test_file_location():
 @pytest.fixture
 def mock_parser_output():
     """Mock parse tree output for testing AST builder."""
+
     class MockToken:
         def __init__(self, text, line=1, column=0):
             self.text = text
@@ -48,4 +50,3 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')")
     config.addinivalue_line("markers", "integration: marks tests as integration tests")
     config.addinivalue_line("markers", "unit: marks tests as unit tests")
-

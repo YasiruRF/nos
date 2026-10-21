@@ -41,6 +41,7 @@ class TestInternalErrors:
     def test_builder_bug_is_reported_as_internal_error(self, monkeypatch):
         def boom(self, ctx):
             raise RuntimeError("kaboom")
+
         monkeypatch.setattr(ASTBuilder, "visit_NodeDecl", boom)
         result = CompilerPipeline().compile_string(VALID, "t.node")
         assert not result.success
@@ -49,8 +50,7 @@ class TestInternalErrors:
         assert "Compilation error" not in result.errors[0]
 
     def test_traceback_only_when_verbose(self, monkeypatch):
-        monkeypatch.setattr(ASTBuilder, "visit_NodeDecl",
-                            lambda self, ctx: (_ for _ in ()).throw(RuntimeError("x")))
+        monkeypatch.setattr(ASTBuilder, "visit_NodeDecl", lambda self, ctx: (_ for _ in ()).throw(RuntimeError("x")))
         quiet = CompilerPipeline().compile_string(VALID, "t.node")
         loud = CompilerPipeline({"verbose": True}).compile_string(VALID, "t.node")
         assert len(quiet.errors) == 1
@@ -84,10 +84,13 @@ class TestInputHandling:
 
 
 class TestQualifiedTypes:
-    @pytest.mark.parametrize("src", [
-        'package a\nnode N { publications { p: ::String @topic("/p") } }',
-        'package a\nnode N { publications { p: std_msgs:: @topic("/p") } }',
-    ])
+    @pytest.mark.parametrize(
+        "src",
+        [
+            'package a\nnode N { publications { p: ::String @topic("/p") } }',
+            'package a\nnode N { publications { p: std_msgs:: @topic("/p") } }',
+        ],
+    )
     def test_malformed_separators_are_syntax_errors(self, src):
         result = CompilerPipeline().compile_string(src, "t.node")
         assert not result.success

@@ -8,14 +8,15 @@ Tests validate that the security sanitizer correctly:
 """
 
 import pytest
+
 from nos.security import (
+    PythonCodeSanitizer,
     SecurityError,
     SecuritySeverity,
     SecurityValidationResult,
-    PythonCodeSanitizer,
-    validate_callback_code,
     sanitize_python_code,
     validate_and_raise,
+    validate_callback_code,
 )
 from nos.security.sanitizer import SecurityViolation
 
@@ -30,33 +31,19 @@ class TestSecurityValidationResult:
         assert len(result.errors) == 0
 
     def test_unsafe_result(self):
-        result = SecurityValidationResult(
-            is_safe=False,
-            errors=["Dangerous code detected"],
-            warnings=[]
-        )
+        result = SecurityValidationResult(is_safe=False, errors=["Dangerous code detected"], warnings=[])
         assert result.is_safe is False
         assert bool(result) is False
         assert len(result.errors) == 1
 
     def test_result_with_warnings(self):
-        result = SecurityValidationResult(
-            is_safe=True,
-            errors=[],
-            warnings=["Potential issue"]
-        )
+        result = SecurityValidationResult(is_safe=True, errors=[], warnings=["Potential issue"])
         assert result.is_safe is True
         assert len(result.warnings) == 1
 
     def test_result_with_violations(self):
-        violations = [
-            SecurityViolation("Test error", SecuritySeverity.CRITICAL, line=5)
-        ]
-        result = SecurityValidationResult(
-            is_safe=False,
-            errors=["Test error"],
-            violations=violations
-        )
+        violations = [SecurityViolation("Test error", SecuritySeverity.CRITICAL, line=5)]
+        result = SecurityValidationResult(is_safe=False, errors=["Test error"], violations=violations)
         assert len(result.violations) == 1
         assert result.violations[0].severity == SecuritySeverity.CRITICAL
 
@@ -94,62 +81,80 @@ class TestSanitizerBasicValidation:
 class TestDangerousBuiltins:
     """Tests for blocking dangerous builtin functions."""
 
-    @pytest.mark.parametrize("dangerous_code", [
-        ("eval('1 + 1')"),
-        ("eval(user_input)"),
-        ("result = eval(expression)"),
-    ])
+    @pytest.mark.parametrize(
+        "dangerous_code",
+        [
+            ("eval('1 + 1')"),
+            ("eval(user_input)"),
+            ("result = eval(expression)"),
+        ],
+    )
     def test_eval_blocked(self, dangerous_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(dangerous_code)
         assert result.is_safe is False
         assert any("eval" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("dangerous_code", [
-        ("exec('print(1)')"),
-        ("exec(user_code)"),
-        ("exec('import os')"),
-    ])
+    @pytest.mark.parametrize(
+        "dangerous_code",
+        [
+            ("exec('print(1)')"),
+            ("exec(user_code)"),
+            ("exec('import os')"),
+        ],
+    )
     def test_exec_blocked(self, dangerous_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(dangerous_code)
         assert result.is_safe is False
         assert any("exec" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("dangerous_code", [
-        ("compile('code', '', 'exec')"),
-        ("compiled = compile(source)"),
-    ])
+    @pytest.mark.parametrize(
+        "dangerous_code",
+        [
+            ("compile('code', '', 'exec')"),
+            ("compiled = compile(source)"),
+        ],
+    )
     def test_compile_blocked(self, dangerous_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(dangerous_code)
         assert result.is_safe is False
         assert any("compile" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("dangerous_code", [
-        ("__import__('os')"),
-        ("mod = __import__(module_name)"),
-    ])
+    @pytest.mark.parametrize(
+        "dangerous_code",
+        [
+            ("__import__('os')"),
+            ("mod = __import__(module_name)"),
+        ],
+    )
     def test_import_blocked(self, dangerous_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(dangerous_code)
         assert result.is_safe is False
         assert any("__import__" in err.lower() or "import" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("dangerous_code", [
-        ("open('/etc/passwd')"),
-        ("f = open('file.txt', 'w')"),
-    ])
+    @pytest.mark.parametrize(
+        "dangerous_code",
+        [
+            ("open('/etc/passwd')"),
+            ("f = open('file.txt', 'w')"),
+        ],
+    )
     def test_open_blocked(self, dangerous_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(dangerous_code)
         assert result.is_safe is False
         assert any("open" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("dangerous_code", [
-        ("getattr(obj, 'eval')"),
-        ("getattr(__builtins__, 'eval')"),
-    ])
+    @pytest.mark.parametrize(
+        "dangerous_code",
+        [
+            ("getattr(obj, 'eval')"),
+            ("getattr(__builtins__, 'eval')"),
+        ],
+    )
     def test_getattr_blocked(self, dangerous_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(dangerous_code)
@@ -159,89 +164,113 @@ class TestDangerousBuiltins:
 class TestSensitiveImports:
     """Tests for blocking imports of sensitive modules."""
 
-    @pytest.mark.parametrize("import_code", [
-        ("import os"),
-        ("import os.path"),
-        ("from os import system"),
-        ("from os.path import join"),
-        ("import os, sys"),  # Multiple imports
-    ])
+    @pytest.mark.parametrize(
+        "import_code",
+        [
+            ("import os"),
+            ("import os.path"),
+            ("from os import system"),
+            ("from os.path import join"),
+            ("import os, sys"),  # Multiple imports
+        ],
+    )
     def test_os_import_blocked(self, import_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(import_code)
         assert result.is_safe is False
         assert any("os" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("import_code", [
-        ("import sys"),
-        ("from sys import exit"),
-        ("import sys as system"),
-    ])
+    @pytest.mark.parametrize(
+        "import_code",
+        [
+            ("import sys"),
+            ("from sys import exit"),
+            ("import sys as system"),
+        ],
+    )
     def test_sys_import_blocked(self, import_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(import_code)
         assert result.is_safe is False
         assert any("sys" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("import_code", [
-        ("import subprocess"),
-        ("from subprocess import run, Popen"),
-        ("import subprocess as sp"),
-    ])
+    @pytest.mark.parametrize(
+        "import_code",
+        [
+            ("import subprocess"),
+            ("from subprocess import run, Popen"),
+            ("import subprocess as sp"),
+        ],
+    )
     def test_subprocess_import_blocked(self, import_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(import_code)
         assert result.is_safe is False
         assert any("subprocess" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("import_code", [
-        ("import socket"),
-        ("from socket import socket"),
-        ("import socketserver"),
-    ])
+    @pytest.mark.parametrize(
+        "import_code",
+        [
+            ("import socket"),
+            ("from socket import socket"),
+            ("import socketserver"),
+        ],
+    )
     def test_socket_import_blocked(self, import_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(import_code)
         assert result.is_safe is False
         assert any("socket" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("import_code", [
-        ("import urllib"),
-        ("import urllib.request"),
-        ("from urllib import urlopen"),
-    ])
+    @pytest.mark.parametrize(
+        "import_code",
+        [
+            ("import urllib"),
+            ("import urllib.request"),
+            ("from urllib import urlopen"),
+        ],
+    )
     def test_urllib_import_blocked(self, import_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(import_code)
         assert result.is_safe is False
         assert any("urllib" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("import_code", [
-        ("import pickle"),
-        ("import cPickle"),
-        ("import shelve"),
-    ])
+    @pytest.mark.parametrize(
+        "import_code",
+        [
+            ("import pickle"),
+            ("import cPickle"),
+            ("import shelve"),
+        ],
+    )
     def test_pickle_import_blocked(self, import_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(import_code)
         assert result.is_safe is False
         assert any("pickle" in err.lower() or "shelve" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("import_code", [
-        ("import ctypes"),
-        ("import mmap"),
-        ("import multiprocessing"),
-    ])
+    @pytest.mark.parametrize(
+        "import_code",
+        [
+            ("import ctypes"),
+            ("import mmap"),
+            ("import multiprocessing"),
+        ],
+    )
     def test_low_level_imports_blocked(self, import_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(import_code)
         assert result.is_safe is False
 
-    @pytest.mark.parametrize("import_code", [
-        ("import ftplib"),
-        ("import smtplib"),
-        ("import telnetlib"),
-    ])
+    @pytest.mark.parametrize(
+        "import_code",
+        [
+            ("import ftplib"),
+            ("import smtplib"),
+            ("import telnetlib"),
+        ],
+    )
     def test_network_imports_blocked(self, import_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(import_code)
@@ -251,50 +280,65 @@ class TestSensitiveImports:
 class TestDangerousAttributes:
     """Tests for blocking dangerous attribute access."""
 
-    @pytest.mark.parametrize("code", [
-        ("os.system('ls')"),
-        ("os.popen('cmd')"),
-    ])
+    @pytest.mark.parametrize(
+        "code",
+        [
+            ("os.system('ls')"),
+            ("os.popen('cmd')"),
+        ],
+    )
     def test_os_system_blocked(self, code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(code)
         assert result.is_safe is False
         assert any("system" in err.lower() or "popen" in err.lower() for err in result.errors)
 
-    @pytest.mark.parametrize("code", [
-        ("subprocess.Popen(['ls'])"),
-        ("subprocess.run(['cmd'])"),
-    ])
+    @pytest.mark.parametrize(
+        "code",
+        [
+            ("subprocess.Popen(['ls'])"),
+            ("subprocess.run(['cmd'])"),
+        ],
+    )
     def test_subprocess_blocked(self, code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(code)
         assert result.is_safe is False
 
-    @pytest.mark.parametrize("code", [
-        ("obj.__class__"),
-        ("obj.__bases__"),
-        ("cls.__subclasses__()"),
-    ])
+    @pytest.mark.parametrize(
+        "code",
+        [
+            ("obj.__class__"),
+            ("obj.__bases__"),
+            ("cls.__subclasses__()"),
+        ],
+    )
     def test_dunder_access_blocked(self, code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(code)
         assert result.is_safe is False
         assert any("__" in err for err in result.errors)
 
-    @pytest.mark.parametrize("code", [
-        ("func.__globals__"),
-        ("func.__code__"),
-        ("func.func_globals"),
-    ])
+    @pytest.mark.parametrize(
+        "code",
+        [
+            ("func.__globals__"),
+            ("func.__code__"),
+            ("func.func_globals"),
+        ],
+    )
     def test_frame_access_blocked(self, code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(code)
         assert result.is_safe is False
 
-    @pytest.mark.parametrize("code", [
-        ("pickle.load(f)"),
-        ("pickle.loads(data)"),
-    ])
+    @pytest.mark.parametrize(
+        "code",
+        [
+            ("pickle.load(f)"),
+            ("pickle.loads(data)"),
+        ],
+    )
     def test_pickle_load_blocked(self, code):
         sanitizer = PythonCodeSanitizer(strict_mode=True)
         result = sanitizer.validate(code)
@@ -304,58 +348,58 @@ class TestDangerousAttributes:
 class TestSafeCodePatterns:
     """Tests for code patterns that should be allowed."""
 
-    @pytest.mark.parametrize("safe_code", [
-        # Basic math operations
-        ("x = 1 + 2"),
-        ("y = x * 3 / 4"),
-        ("result = (a + b) * c"),
-        ("value = sum([1, 2, 3])"),
-        ("import math; math.sqrt(16)"),
-
-        # String operations
-        ('s = "hello".upper()'),
-        ("parts = text.split(',')"),
-        ("joined = '-'.join(items)"),
-
-        # Data structures
-        ("d = {'key': 'value'}"),
-        ("lst = [1, 2, 3]"),
-        ("tup = (1, 2)"),
-        ("st = {1, 2, 3}"),
-
-        # Control flow
-        ("if x > 0:\n    print(x)"),
-        ("for i in range(10):\n    pass"),
-        ("while x < 10:\n    x += 1"),
-        ("try:\n    x = 1\nexcept:\n    pass"),
-
-        # List comprehensions
-        ("squares = [x**2 for x in range(10)]"),
-        ("evens = [x for x in nums if x % 2 == 0]"),
-
-        # Functions
-        ("def greet(name):\n    return f'Hello {name}'"),
-        ("lambda x: x * 2"),
-
-        # Safe imports
-        ("import json"),
-        ("from datetime import datetime"),
-        ("import collections"),
-    ])
+    @pytest.mark.parametrize(
+        "safe_code",
+        [
+            # Basic math operations
+            ("x = 1 + 2"),
+            ("y = x * 3 / 4"),
+            ("result = (a + b) * c"),
+            ("value = sum([1, 2, 3])"),
+            ("import math; math.sqrt(16)"),
+            # String operations
+            ('s = "hello".upper()'),
+            ("parts = text.split(',')"),
+            ("joined = '-'.join(items)"),
+            # Data structures
+            ("d = {'key': 'value'}"),
+            ("lst = [1, 2, 3]"),
+            ("tup = (1, 2)"),
+            ("st = {1, 2, 3}"),
+            # Control flow
+            ("if x > 0:\n    print(x)"),
+            ("for i in range(10):\n    pass"),
+            ("while x < 10:\n    x += 1"),
+            ("try:\n    x = 1\nexcept:\n    pass"),
+            # List comprehensions
+            ("squares = [x**2 for x in range(10)]"),
+            ("evens = [x for x in nums if x % 2 == 0]"),
+            # Functions
+            ("def greet(name):\n    return f'Hello {name}'"),
+            ("lambda x: x * 2"),
+            # Safe imports
+            ("import json"),
+            ("from datetime import datetime"),
+            ("import collections"),
+        ],
+    )
     def test_safe_code_passes(self, safe_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(safe_code)
         assert result.is_safe is True, f"Failed for code: {safe_code}, errors: {result.errors}"
 
-    @pytest.mark.parametrize("ros_code", [
-        # ROS2 message handling
-        ("msg.data = 'hello'"),
-        ("header = msg.header"),
-        ("self.publisher.publish(msg)"),
-        ("import rclpy"),
-        ("from std_msgs.msg import String"),
-        ("from geometry_msgs.msg import Point"),
-    ])
+    @pytest.mark.parametrize(
+        "ros_code",
+        [
+            # ROS2 message handling
+            ("msg.data = 'hello'"),
+            ("header = msg.header"),
+            ("self.publisher.publish(msg)"),
+            ("import rclpy"),
+            ("from std_msgs.msg import String"),
+            ("from geometry_msgs.msg import Point"),
+        ],
+    )
     def test_ros2_code_allowed(self, ros_code):
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(ros_code)
@@ -399,9 +443,7 @@ class TestObfuscationDetection:
     def test_base64_like_detected(self):
         sanitizer = PythonCodeSanitizer()
         # Long base64-like string
-        result = sanitizer.validate(
-            "data = 'SGVsbG8gV29ybGQgVGhpcyBJcyBUZXN0IERhdGE='"
-        )
+        result = sanitizer.validate("data = 'SGVsbG8gV29ybGQgVGhpcyBJcyBUZXN0IERhdGE='")
         assert len(result.warnings) > 0 or len(result.errors) > 0
 
     def test_chr_ord_pattern_detected(self):
@@ -472,6 +514,7 @@ class TestBackwardsCompatibility:
 
     def test_old_api_works(self):
         from nos.security import PythonCodeValidator
+
         validator = PythonCodeValidator()
         result = validator.validate("eval('1+1')")
         assert result.is_safe is False
@@ -607,10 +650,7 @@ class TestViolationReporting:
         code = "eval('1')"  # Critical violation
         sanitizer = PythonCodeSanitizer()
         result = sanitizer.validate(code)
-        critical_violations = [
-            v for v in result.violations
-            if v.severity == SecuritySeverity.CRITICAL
-        ]
+        critical_violations = [v for v in result.violations if v.severity == SecuritySeverity.CRITICAL]
         assert len(critical_violations) > 0
 
     def test_violation_message_format(self):

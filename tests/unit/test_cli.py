@@ -1,5 +1,6 @@
 """Command line interface (#25, #26, part of #28)."""
 
+import importlib
 import subprocess
 import sys
 from pathlib import Path
@@ -7,15 +8,14 @@ from pathlib import Path
 import pytest
 
 import nos
-import importlib
 
 main = importlib.import_module("nos.compiler.main").main
 cli = importlib.import_module("nos.compiler.main")
 
 A = 'package demo\nnode A { publications { p: std_msgs::String @topic("/a") } }\n'
 B = 'package demo\nnode B { subscriptions { s: std_msgs::String @topic("/a") } }\n'
-LAUNCH = 'package demo\nlaunch L { arguments { x: int = 1 } }\n'
-BAD = 'package demo\nnode {'
+LAUNCH = "package demo\nlaunch L { arguments { x: int = 1 } }\n"
+BAD = "package demo\nnode {"
 
 
 @pytest.fixture
@@ -24,6 +24,7 @@ def src(tmp_path):
         f = tmp_path / name
         f.write_text(text)
         return str(f)
+
     return write
 
 
@@ -40,7 +41,7 @@ class TestBasics:
 
     def test_setup_py_uses_package_version(self):
         text = (Path(__file__).resolve().parents[2] / "setup.py").read_text()
-        assert 'version=version' in text
+        assert "version=version" in text
 
     def test_compile_valid_file(self, src, tmp_path):
         out = tmp_path / "out"
@@ -116,8 +117,15 @@ class TestSharedPackages:
 
     def test_different_packages_get_separate_scaffolds(self, src, tmp_path):
         out = tmp_path / "out"
-        main([src("a.node", A), src("c.node", A.replace("demo", "other").replace("node A", "node C")),
-              "-o", str(out), "--no-build"])
+        main(
+            [
+                src("a.node", A),
+                src("c.node", A.replace("demo", "other").replace("node A", "node C")),
+                "-o",
+                str(out),
+                "--no-build",
+            ]
+        )
         assert (pkg_dir(out, "demo") / "package.xml").exists()
         assert (pkg_dir(out, "other") / "package.xml").exists()
 
@@ -130,8 +138,10 @@ class TestSharedPackages:
 
 
 class TestScaffoldContents:
-    SRC = ('package demo version "1.2.3" depends: ["geometry_msgs"]\n'
-           'node A { publications { p: sensor_msgs::Image @topic("/a") } }\n')
+    SRC = (
+        'package demo version "1.2.3" depends: ["geometry_msgs"]\n'
+        'node A { publications { p: sensor_msgs::Image @topic("/a") } }\n'
+    )
 
     def build(self, src, tmp_path):
         out = tmp_path / "out"
@@ -158,6 +168,7 @@ class TestBuild:
     def test_colcon_failure_is_reported_once_with_its_reason(self, src, tmp_path, monkeypatch, capsys):
         def fake_run(cmd, **kw):
             return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="boom: missing dep")
+
         monkeypatch.setattr(subprocess, "run", fake_run)
         code = main([src("a.node", A), "-o", str(tmp_path / "o")])
         assert code == 1
@@ -172,6 +183,7 @@ class TestBuild:
             calls.append(cmd)
             (Path(kw["cwd"]) / "install" / "demo").mkdir(parents=True, exist_ok=True)
             return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+
         monkeypatch.setattr(subprocess, "run", fake_run)
         args = [src("a.node", A), "-o", str(tmp_path / "o")]
         assert main(args) == 0
@@ -187,6 +199,7 @@ class TestBuild:
             calls.append(cmd)
             (Path(kw["cwd"]) / "install" / "demo").mkdir(parents=True, exist_ok=True)
             return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
         monkeypatch.setattr(subprocess, "run", fake_run)
         main([src("a.node", A), "-o", str(tmp_path / "o")])
         main([src("a.node", A.replace("/a", "/changed")), "-o", str(tmp_path / "o")])
@@ -195,6 +208,7 @@ class TestBuild:
     def test_colcon_missing(self, src, tmp_path, monkeypatch, capsys):
         def fake_run(cmd, **kw):
             raise FileNotFoundError("colcon")
+
         monkeypatch.setattr(subprocess, "run", fake_run)
         assert main([src("a.node", A), "-o", str(tmp_path / "o")]) == 1
         assert "colcon executable not found" in capsys.readouterr().err
@@ -203,8 +217,9 @@ class TestBuild:
 class TestRun:
     def test_run_executes_the_generated_node_path(self, src, tmp_path, monkeypatch):
         seen = []
-        monkeypatch.setattr(cli.subprocess, "run",
-                            lambda cmd, **kw: seen.append(cmd) or subprocess.CompletedProcess(cmd, 0))
+        monkeypatch.setattr(
+            cli.subprocess, "run", lambda cmd, **kw: seen.append(cmd) or subprocess.CompletedProcess(cmd, 0)
+        )
         out = tmp_path / "o"
         assert main([src("a.node", A), "-o", str(out), "--no-build", "--run"]) == 0
         assert seen == [[sys.executable, str(pkg_dir(out) / "demo" / "a_node.py")]]
@@ -225,6 +240,7 @@ class TestRun:
     def test_run_failure_exit_code(self, src, tmp_path, monkeypatch, capsys):
         def boom(cmd, **kw):
             raise subprocess.CalledProcessError(3, cmd)
+
         monkeypatch.setattr(cli.subprocess, "run", boom)
         assert main([src("a.node", A), "-o", str(tmp_path / "o"), "--no-build", "--run"]) == 1
         assert "Error running node" in capsys.readouterr().err

@@ -29,7 +29,7 @@ def test_fixtures_exist():
 
 def test_generators_do_not_emit_the_same_path():
     """PythonGenerator and LaunchTranspiler must not overwrite each other (#11)."""
-    from nos.codegen import PythonGenerator, LaunchTranspiler
+    from nos.codegen import LaunchTranspiler, PythonGenerator
 
     pipeline = CompilerPipeline()
     src = (FIXTURES[0].parent / "launch.node").read_text()
