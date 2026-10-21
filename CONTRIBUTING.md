@@ -16,7 +16,7 @@ Thank you for your interest in contributing to NOS (Node Orchestration System)! 
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.9 or higher (CI runs 3.9-3.13)
 - pip (Python package manager)
 - Git
 
@@ -92,6 +92,19 @@ tests/                # Test suite
 ```bash
 pytest
 ```
+
+### Running tests in a shell where ROS 2 is sourced
+
+A sourced ROS 2 environment puts its own pytest plugins on the path (`launch_testing`, ...),
+and they fail to import without extra packages. Either run the tests in a shell where ROS is
+not sourced, or disable plugin autoloading:
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest
+```
+
+The suite does not need ROS: `tests/fake_rclpy.py` stands in for `rclpy`. The `ros` job in
+`.github/workflows/ci.yml` additionally runs it inside a `ros:humble` container.
 
 ### Run with Coverage
 

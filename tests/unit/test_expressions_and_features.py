@@ -51,13 +51,15 @@ class TestExpressions:
         assert default_of("100ms", "duration") == "Duration(milliseconds=100)"
 
 
+@pytest.fixture(scope="module")
+def result():
+    text = (FIXTURES / "full_feature.node").read_text()
+    result = CompilerPipeline().compile_string(text, "full_feature.node")
+    assert result.success, result.errors
+    return result
+
+
 class TestFullFeatureProgram:
-    @pytest.fixture(scope="class")
-    def result(self):
-        text = (FIXTURES / "full_feature.node").read_text()
-        result = CompilerPipeline().compile_string(text, "full_feature.node")
-        assert result.success, result.errors
-        return result
 
     def test_builds_node_and_launch(self, result):
         assert set(result.files) == {"planner_node.py", "bringup_launch.py"}
