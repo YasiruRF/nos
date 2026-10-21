@@ -63,5 +63,59 @@ node CallbackNode {
     assert 'self.get_logger().info("Initializing node")' in code
 
 
+CALLBACKS = """package demo
+node Cb {
+    on_init -> {
+        self.ready = True
+    }
+    on_shutdown -> {
+        self.get_logger().info("bye")
+    }
+    on tick(count: int, ratio: float, scan: sensor_msgs::LaserScan) -> {
+        total = 0
+        for i in range(count):
+            total += i
+
+        self.get_logger().info(f"{total} {ratio}")
+    }
+    on_parameter_change(name: string) -> {
+        pass
+    }
+}
+"""
+
+
+def _compile():
+    result = CompilerPipeline().compile_string(CALLBACKS, "cb.node")
+    assert result.success, result.errors
+    return result
+
+
+def test_callbacks_parse_into_the_ast():
+    callbacks = {cb.event: cb for cb in _compile().ast.declarations[-1].callbacks}
+    assert set(callbacks) == {"on_init", "on_shutdown", "tick", "on_parameter_change"}
+    assert [p.name for p in callbacks["tick"].parameters] == ["count", "ratio", "scan"]
+    assert callbacks["on_init"].parameters == []
+
+
+def test_callback_parameter_types_are_typed_in_generated_code():
+    code = _compile().files["cb_node.py"]
+    assert "def tick(self, count: int, ratio: float, scan: LaserScan):" in code
+    assert "from sensor_msgs.msg import LaserScan" in code
+    assert "def on_parameter_change(self, name: str):" in code
+
+
+def test_lifecycle_callbacks_are_generated():
+    code = _compile().files["cb_node.py"]
+    assert "def on_init(self):" in code
+    assert "def on_shutdown(self):" in code
+    assert "self.on_init()" in code
+
+
+def test_multiline_callback_body_is_preserved():
+    code = _compile().files["cb_node.py"]
+    assert "            for i in range(count):\n                total += i\n\n            self.get_logger()" in code
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
