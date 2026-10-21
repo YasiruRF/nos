@@ -1,1 +1,2 @@
 recursive-include nos/extensions/vscode-nos *
+include nos/codeblock/static/*.html

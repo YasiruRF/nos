@@ -16,6 +16,7 @@ setup(
     license="Apache-2.0",
     packages=find_packages(),
     include_package_data=True,
+    package_data={"nos.codeblock": ["static/*.html"]},
     install_requires=[
         "antlr4-python3-runtime>=4.13.0",
         "jinja2>=3.0.0",
